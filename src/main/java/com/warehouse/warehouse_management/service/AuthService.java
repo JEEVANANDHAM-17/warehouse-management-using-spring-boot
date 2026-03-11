@@ -20,15 +20,19 @@ public class AuthService {
     public AuthService(UserRepository userRepository,
                        RoleRepository roleRepository,
                        PasswordEncoder passwordEncoder) {
-
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
     public String register(RegisterRequest request) {
+        if (request.getRole().equalsIgnoreCase("ADMIN")
+                || request.getRole().equalsIgnoreCase("SUPER_ADMIN")) {
+            throw new RuntimeException("Admin creation is restricted");
+        }
+
         Role role = roleRepository.findByName(request.getRole())
-                .orElseThrow();
+                .orElseThrow(() -> new RuntimeException("Role not found"));
 
         User user = User.builder()
                 .name(request.getName())
@@ -44,7 +48,7 @@ public class AuthService {
 
     public String login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow();
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new RuntimeException("Invalid credentials");
