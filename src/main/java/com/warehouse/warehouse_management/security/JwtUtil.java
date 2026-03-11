@@ -4,7 +4,8 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 public class JwtUtil {
@@ -12,7 +13,8 @@ public class JwtUtil {
     private static final String SECRET =
             "warehouseSecretKeywarehouseSecretKeywarehouseSecretKey";
 
-    private static final Key key = Keys.hmacShaKeyFor(SECRET.getBytes());
+    private static final SecretKey key =
+            Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
 
     public static String generateToken(String email) {
 
