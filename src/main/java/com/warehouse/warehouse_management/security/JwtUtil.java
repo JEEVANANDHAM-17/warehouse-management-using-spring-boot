@@ -27,13 +27,28 @@ public class JwtUtil {
     }
 
     public static String extractEmail(String token) {
+        String jwt = normalizeToken(token);
 
         Claims claims = Jwts.parser()
                 .verifyWith(key)
                 .build()
-                .parseSignedClaims(token)
+                .parseSignedClaims(jwt)
                 .getPayload();
 
         return claims.getSubject();
+    }
+
+    private static String normalizeToken(String token) {
+        if (token == null) {
+            throw new IllegalArgumentException("JWT token cannot be null");
+        }
+
+        String jwt = token.trim();
+
+        if (jwt.startsWith("Bearer ")) {
+            jwt = jwt.substring(7).trim();
+        }
+
+        return jwt;
     }
 }
