@@ -1,30 +1,37 @@
 package com.warehouse.warehouse_management.security;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
+import java.security.Key;
 import java.util.Date;
 
-public final class JwtUtil {
+public class JwtUtil {
 
-    private static final String SECRET = "warehouse-management-secret-key-2026";
-    private static final long EXPIRATION_MS = 86_400_000L;
-    private static final SecretKey SECRET_KEY =
-            Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
+    private static final String SECRET =
+            "warehouseSecretKeywarehouseSecretKeywarehouseSecretKey";
 
-    private JwtUtil() {
-    }
+    private static final Key key = Keys.hmacShaKeyFor(SECRET.getBytes());
 
-    public static String generateToken(String subject) {
-        Date now = new Date();
+    public static String generateToken(String email) {
 
         return Jwts.builder()
-                .subject(subject)
-                .issuedAt(now)
-                .expiration(new Date(now.getTime() + EXPIRATION_MS))
-                .signWith(SECRET_KEY)
+                .subject(email)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + 86400000))
+                .signWith(key)
                 .compact();
+    }
+
+    public static String extractEmail(String token) {
+
+        Claims claims = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+
+        return claims.getSubject();
     }
 }
