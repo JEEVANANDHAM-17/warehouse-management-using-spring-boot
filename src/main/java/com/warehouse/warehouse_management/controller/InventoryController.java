@@ -7,6 +7,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/inventory")
 @RequiredArgsConstructor
@@ -18,5 +20,20 @@ public class InventoryController {
     public Inventory addStock(@Valid @RequestBody StockRequest request) {
 
         return inventoryService.addStock(request);
+    }
+
+    @GetMapping
+    public List<Inventory> getAll() {
+        return inventoryService.getAllInventory();
+    }
+
+    @GetMapping("/{id}")
+    public Inventory getById(@PathVariable Long id) {
+        return inventoryService.getInventory(id);
+    }
+
+    @PutMapping("/{id}")
+    public Inventory update(@PathVariable Long id, @Valid @RequestBody StockRequest request) {
+        return inventoryService.updateInventory(id, request);
     }
 }

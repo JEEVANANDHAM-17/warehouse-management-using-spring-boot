@@ -7,6 +7,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/products")
 @RequiredArgsConstructor
@@ -18,5 +20,20 @@ public class ProductController {
     public Product create(@Valid @RequestBody CreateProductRequest request) {
 
         return productService.createProduct(request);
+    }
+
+    @GetMapping
+    public List<Product> getAll() {
+        return productService.getAllProducts();
+    }
+
+    @GetMapping("/{id}")
+    public Product getById(@PathVariable Long id) {
+        return productService.getProduct(id);
+    }
+
+    @PutMapping("/{id}")
+    public Product update(@PathVariable Long id, @Valid @RequestBody CreateProductRequest request) {
+        return productService.updateProduct(id, request);
     }
 }

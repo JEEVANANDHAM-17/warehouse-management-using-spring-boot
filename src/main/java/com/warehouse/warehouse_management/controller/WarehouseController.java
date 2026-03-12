@@ -23,4 +23,14 @@ public class WarehouseController {
     public List<Warehouse> getAll() {
         return service.getAllWarehouses();
     }
+
+    @GetMapping("/{id}")
+    public Warehouse getById(@PathVariable Long id) {
+        return service.getWarehouse(id);
+    }
+
+    @PutMapping("/{id}")
+    public Warehouse update(@PathVariable Long id, @RequestBody Warehouse warehouse) {
+        return service.updateWarehouse(id, warehouse);
+    }
 }

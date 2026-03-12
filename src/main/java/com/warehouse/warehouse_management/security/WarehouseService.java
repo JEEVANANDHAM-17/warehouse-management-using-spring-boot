@@ -21,7 +21,19 @@ public class WarehouseService {
     }
 
     public List<Warehouse> getAllWarehouses() {
-        warehouseRequestValidator.validateWarehouseAccess();
+        warehouseRequestValidator.validateReadAccess();
         return warehousePersistenceService.findAll();
+    }
+
+    public Warehouse getWarehouse(Long warehouseId) {
+        warehouseRequestValidator.validateReadAccess();
+        return warehousePersistenceService.getRequiredById(warehouseId);
+    }
+
+    public Warehouse updateWarehouse(Long warehouseId, Warehouse request) {
+        Warehouse warehouse = warehouseRequestValidator.validateUpdateWarehouse(warehouseId, request);
+        warehouse.setName(request.getName());
+        warehouse.setLocation(request.getLocation());
+        return warehousePersistenceService.save(warehouse);
     }
 }
