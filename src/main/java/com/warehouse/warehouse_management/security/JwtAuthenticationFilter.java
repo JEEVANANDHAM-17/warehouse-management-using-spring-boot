@@ -2,6 +2,8 @@ package com.warehouse.warehouse_management.security;
 
 import com.warehouse.warehouse_management.entity.User;
 import com.warehouse.warehouse_management.repository.UserRepository;
+import com.warehouse.warehouse_management.response.ApiResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +24,7 @@ import java.util.Locale;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -60,10 +63,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
 
-            } catch (Exception ignored) {
+            } catch (Exception ex) {
+                SecurityContextHolder.clearContext();
+                writeUnauthorizedResponse(response, "Invalid token");
+                return;
             }
+        } else if (header != null && !header.isBlank()) {
+            SecurityContextHolder.clearContext();
+            writeUnauthorizedResponse(response, "Invalid token");
+            return;
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void writeUnauthorizedResponse(HttpServletResponse response, String message)
+            throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        objectMapper.writeValue(response.getWriter(), new ApiResponse<>(false, message, null));
     }
 }

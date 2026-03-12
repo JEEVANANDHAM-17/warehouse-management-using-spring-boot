@@ -1,6 +1,6 @@
 package com.warehouse.warehouse_management.service;
 
-import com.warehouse.warehouse_management.dto.RegisterRequest;
+import com.warehouse.warehouse_management.dto.CreateAdminRequest;
 import com.warehouse.warehouse_management.entity.Role;
 import com.warehouse.warehouse_management.entity.User;
 import com.warehouse.warehouse_management.repository.RoleRepository;
@@ -17,7 +17,7 @@ public class AdminService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public void createAdmin(RegisterRequest request) {
+    public void createAdmin(CreateAdminRequest request) {
 
         Role role = roleRepository.findByName("ADMIN")
                 .orElseThrow();
