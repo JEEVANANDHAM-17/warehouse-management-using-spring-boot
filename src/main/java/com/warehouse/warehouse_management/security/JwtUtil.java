@@ -26,16 +26,22 @@ public class JwtUtil {
                 .compact();
     }
 
+    public static void validateToken(String token) {
+        extractClaims(token);
+    }
+
     public static String extractEmail(String token) {
+        return extractClaims(token).getSubject();
+    }
+
+    private static Claims extractClaims(String token) {
         String jwt = normalizeToken(token);
 
-        Claims claims = Jwts.parser()
+        return Jwts.parser()
                 .verifyWith(key)
                 .build()
                 .parseSignedClaims(jwt)
                 .getPayload();
-
-        return claims.getSubject();
     }
 
     private static String normalizeToken(String token) {

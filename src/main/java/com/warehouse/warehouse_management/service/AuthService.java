@@ -4,35 +4,36 @@ import com.warehouse.warehouse_management.dto.LoginRequest;
 import com.warehouse.warehouse_management.dto.RegisterRequest;
 import com.warehouse.warehouse_management.entity.Role;
 import com.warehouse.warehouse_management.entity.User;
-import com.warehouse.warehouse_management.repository.RoleRepository;
-import com.warehouse.warehouse_management.repository.UserRepository;
+import com.warehouse.warehouse_management.persistence.RolePersistenceService;
+import com.warehouse.warehouse_management.persistence.UserPersistenceService;
 import com.warehouse.warehouse_management.security.JwtUtil;
+import com.warehouse.warehouse_management.validation.AuthRequestValidator;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AuthService {
 
-    private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
+    private final UserPersistenceService userPersistenceService;
+    private final RolePersistenceService rolePersistenceService;
     private final PasswordEncoder passwordEncoder;
+    private final AuthRequestValidator authRequestValidator;
 
-    public AuthService(UserRepository userRepository,
-                       RoleRepository roleRepository,
-                       PasswordEncoder passwordEncoder) {
-        this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
+    public AuthService(UserPersistenceService userPersistenceService,
+                       RolePersistenceService rolePersistenceService,
+                       PasswordEncoder passwordEncoder,
+                       AuthRequestValidator authRequestValidator) {
+        this.userPersistenceService = userPersistenceService;
+        this.rolePersistenceService = rolePersistenceService;
         this.passwordEncoder = passwordEncoder;
+        this.authRequestValidator = authRequestValidator;
     }
 
     public String register(RegisterRequest request) {
-        if (request.getRole().equalsIgnoreCase("ADMIN")
-                || request.getRole().equalsIgnoreCase("SUPER_ADMIN")) {
-            throw new RuntimeException("Admin creation is restricted");
-        }
+        authRequestValidator.validateRegister(request);
 
-        Role role = roleRepository.findByName(request.getRole())
-                .orElseThrow(() -> new RuntimeException("Role not found"));
+        Role role = rolePersistenceService.getRequiredByName(request.getRole());
 
         User user = User.builder()
                 .name(request.getName())
@@ -41,17 +42,17 @@ public class AuthService {
                 .role(role)
                 .build();
 
-        userRepository.save(user);
+        userPersistenceService.save(user);
 
         return "User registered successfully";
     }
 
     public String login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userPersistenceService.findByEmail(request.getEmail())
+                .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid credentials");
+            throw new BadCredentialsException("Invalid credentials");
         }
 
         return JwtUtil.generateToken(user.getEmail());

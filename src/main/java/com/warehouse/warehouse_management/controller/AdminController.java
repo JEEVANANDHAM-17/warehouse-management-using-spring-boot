@@ -5,7 +5,6 @@ import com.warehouse.warehouse_management.response.ApiResponse;
 import com.warehouse.warehouse_management.service.AdminService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -16,7 +15,6 @@ public class AdminController {
     private final AdminService adminService;
 
     @PostMapping("/create-admin")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ApiResponse<String> createAdmin(@Valid @RequestBody CreateAdminRequest request) {
 
         adminService.createAdmin(request);

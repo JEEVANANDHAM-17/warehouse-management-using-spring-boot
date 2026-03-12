@@ -2,7 +2,8 @@ package com.warehouse.warehouse_management.service;
 
 import com.warehouse.warehouse_management.dto.CreateProductRequest;
 import com.warehouse.warehouse_management.entity.Product;
-import com.warehouse.warehouse_management.repository.ProductRepository;
+import com.warehouse.warehouse_management.persistence.ProductPersistenceService;
+import com.warehouse.warehouse_management.validation.ProductRequestValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -10,9 +11,11 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ProductService {
 
-    private final ProductRepository productRepository;
+    private final ProductPersistenceService productPersistenceService;
+    private final ProductRequestValidator productRequestValidator;
 
     public Product createProduct(CreateProductRequest request) {
+        productRequestValidator.validateCreateProduct(request);
 
         Product product = Product.builder()
                 .sku(request.getSku())
@@ -21,6 +24,6 @@ public class ProductService {
                 .price(request.getPrice())
                 .build();
 
-        return productRepository.save(product);
+        return productPersistenceService.save(product);
     }
 }

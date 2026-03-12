@@ -2,11 +2,9 @@ package com.warehouse.warehouse_management.service;
 
 import com.warehouse.warehouse_management.dto.StockRequest;
 import com.warehouse.warehouse_management.entity.Inventory;
-import com.warehouse.warehouse_management.entity.Product;
-import com.warehouse.warehouse_management.entity.Warehouse;
-import com.warehouse.warehouse_management.repository.InventoryRepository;
-import com.warehouse.warehouse_management.repository.ProductRepository;
-import com.warehouse.warehouse_management.repository.WarehouseRepository;
+import com.warehouse.warehouse_management.persistence.InventoryPersistenceService;
+import com.warehouse.warehouse_management.validation.InventoryRequestValidator;
+import com.warehouse.warehouse_management.validation.ValidatedStockRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,37 +12,34 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class InventoryService {
 
-    private final InventoryRepository inventoryRepository;
-    private final ProductRepository productRepository;
-    private final WarehouseRepository warehouseRepository;
+    private final InventoryPersistenceService inventoryPersistenceService;
+    private final InventoryRequestValidator inventoryRequestValidator;
 
     public Inventory addStock(StockRequest request) {
+        ValidatedStockRequest validatedRequest = inventoryRequestValidator.validateAddStock(request);
 
-        Product product = productRepository.findById(request.getProductId())
-                .orElseThrow(() -> new RuntimeException("Product not found"));
-
-        Warehouse warehouse = warehouseRepository.findById(request.getWarehouseId())
-                .orElseThrow(() -> new RuntimeException("Warehouse not found"));
-
-        Inventory inventory = inventoryRepository
-                .findByProductIdAndWarehouseId(product.getId(), warehouse.getId())
+        Inventory inventory = inventoryPersistenceService
+                .findByProductAndWarehouse(
+                        validatedRequest.product().getId(),
+                        validatedRequest.warehouse().getId()
+                )
                 .orElse(null);
 
         if (inventory == null) {
 
             inventory = Inventory.builder()
-                    .product(product)
-                    .warehouse(warehouse)
-                    .quantity(request.getQuantity())
+                    .product(validatedRequest.product())
+                    .warehouse(validatedRequest.warehouse())
+                    .quantity(validatedRequest.quantity())
                     .build();
 
         } else {
 
-            inventory.setQuantity(inventory.getQuantity() + request.getQuantity());
+            inventory.setQuantity(inventory.getQuantity() + validatedRequest.quantity());
 
         }
 
-        return inventoryRepository.save(inventory);
+        return inventoryPersistenceService.save(inventory);
     }
 
 }

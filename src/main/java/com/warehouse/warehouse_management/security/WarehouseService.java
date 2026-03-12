@@ -1,7 +1,8 @@
 package com.warehouse.warehouse_management.service;
 
 import com.warehouse.warehouse_management.entity.Warehouse;
-import com.warehouse.warehouse_management.repository.WarehouseRepository;
+import com.warehouse.warehouse_management.persistence.WarehousePersistenceService;
+import com.warehouse.warehouse_management.validation.WarehouseRequestValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -11,13 +12,16 @@ import java.util.List;
 @RequiredArgsConstructor
 public class WarehouseService {
 
-    private final WarehouseRepository repository;
+    private final WarehousePersistenceService warehousePersistenceService;
+    private final WarehouseRequestValidator warehouseRequestValidator;
 
     public Warehouse createWarehouse(Warehouse warehouse) {
-        return repository.save(warehouse);
+        warehouseRequestValidator.validateCreateWarehouse(warehouse);
+        return warehousePersistenceService.save(warehouse);
     }
 
     public List<Warehouse> getAllWarehouses() {
-        return repository.findAll();
+        warehouseRequestValidator.validateWarehouseAccess();
+        return warehousePersistenceService.findAll();
     }
 }
