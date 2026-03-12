@@ -7,6 +7,7 @@ import com.warehouse.warehouse_management.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -35,7 +36,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .anyRequest().authenticated()
+                        .requestMatchers(HttpMethod.GET, "/test").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/products").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/inventory/add-stock").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/warehouses").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/warehouses").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/admin/create-admin").authenticated()
+                        .anyRequest().permitAll()
                 )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
