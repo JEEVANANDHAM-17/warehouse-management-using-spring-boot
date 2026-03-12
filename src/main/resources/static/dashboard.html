@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warehouse Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="app-page">
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar__brand">
+            <p class="eyebrow">Control Center</p>
+            <h1>Warehouse Ops</h1>
+            <p class="sidebar__copy">Three modules, JWT-protected XHR requests, and direct navigation for list, item, create, and edit screens.</p>
+        </div>
+
+        <nav class="sidebar__nav" aria-label="Primary">
+            <a class="nav-link" data-nav-link href="#/overview">Overview</a>
+
+            <section class="nav-group" data-module-group="products">
+                <p class="nav-group__title">Products</p>
+                <a class="nav-link nav-link--sub" data-nav-link href="#/products/list">List</a>
+                <a class="nav-link nav-link--sub" data-nav-link href="#/products/create">Create</a>
+            </section>
+
+            <section class="nav-group" data-module-group="warehouses">
+                <p class="nav-group__title">Warehouses</p>
+                <a class="nav-link nav-link--sub" data-nav-link href="#/warehouses/list">List</a>
+                <a class="nav-link nav-link--sub" data-nav-link href="#/warehouses/create">Create</a>
+            </section>
+
+            <section class="nav-group" data-module-group="inventory">
+                <p class="nav-group__title">Inventory</p>
+                <a class="nav-link nav-link--sub" data-nav-link href="#/inventory/list">List</a>
+                <a class="nav-link nav-link--sub" data-nav-link href="#/inventory/create">Create</a>
+            </section>
+        </nav>
+
+        <section class="sidebar__card">
+            <p class="eyebrow">Auth Flow</p>
+            <h2>Protected XHR</h2>
+            <p>The login API returns the JWT in <code>ApiResponse.data</code>. All module requests send <code>Authorization: Bearer &lt;token&gt;</code>.</p>
+        </section>
+    </aside>
+
+    <div class="workspace">
+        <header class="workspace__header">
+            <div>
+                <p id="breadcrumb" class="breadcrumb">Overview</p>
+                <h2 id="page-title">Operations overview</h2>
+            </div>
+
+            <div class="workspace__actions">
+                <span id="token-status" class="pill">JWT session active</span>
+                <button id="logout-button" type="button" class="button button--ghost">Logout</button>
+            </div>
+        </header>
+
+        <div id="flash-message" class="flash-message" aria-live="polite"></div>
+        <main id="view-root" class="view-root"></main>
+    </div>
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

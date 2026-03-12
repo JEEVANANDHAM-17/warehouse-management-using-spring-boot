@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warehouse Control Center</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="auth-page">
+<div class="ambient ambient-left"></div>
+<div class="ambient ambient-right"></div>
+
+<main class="auth-shell">
+    <section class="auth-panel auth-panel--story">
+        <p class="eyebrow">Warehouse Management</p>
+        <h1>Operate products, warehouses, and inventory from one secure console.</h1>
+        <p class="hero-copy">
+            The frontend is wired to the current Spring Boot APIs and uses the JWT returned from login
+            for every protected XHR request.
+        </p>
+
+        <div class="hero-grid">
+            <article class="hero-card">
+                <p class="hero-card__label">Products</p>
+                <h2>Catalog control</h2>
+                <p>Create SKUs, inspect item details, and update pricing from one module.</p>
+            </article>
+            <article class="hero-card">
+                <p class="hero-card__label">Warehouses</p>
+                <h2>Location management</h2>
+                <p>Review warehouse records, open detail views, and maintain locations cleanly.</p>
+            </article>
+            <article class="hero-card">
+                <p class="hero-card__label">Inventory</p>
+                <h2>Stock movement</h2>
+                <p>Track stock by warehouse, open item pages, and update quantities quickly.</p>
+            </article>
+        </div>
+    </section>
+
+    <section class="auth-panel auth-panel--form">
+        <div class="auth-card">
+            <p class="eyebrow">JWT Login</p>
+            <h2>Sign in to the control center</h2>
+            <p class="auth-copy">Use the existing authentication API. Successful login stores the token locally and redirects into the dashboard.</p>
+
+            <form id="login-form" class="form-stack">
+                <label class="field">
+                    <span>Email</span>
+                    <input id="email" name="email" type="email" placeholder="superadmin@warehouse.com" required>
+                </label>
+
+                <label class="field">
+                    <span>Password</span>
+                    <input id="password" name="password" type="password" placeholder="Enter password" required>
+                </label>
+
+                <button id="login-button" type="submit" class="button button--primary button--block">Login</button>
+            </form>
+
+            <p class="helper-note">Default bootstrap user: <strong>superadmin@warehouse.com</strong> / <strong>super123</strong></p>
+            <p id="message" class="status-message" aria-live="polite"></p>
+        </div>
+    </section>
+</main>
+
+<script src="/js/app.js"></script>
+</body>
+</html>
