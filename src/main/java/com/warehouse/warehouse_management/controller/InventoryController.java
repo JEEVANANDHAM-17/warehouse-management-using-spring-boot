@@ -5,6 +5,7 @@ import com.warehouse.warehouse_management.entity.Inventory;
 import com.warehouse.warehouse_management.service.InventoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -35,5 +36,12 @@ public class InventoryController {
     @PutMapping("/{id}")
     public Inventory update(@PathVariable Long id, @Valid @RequestBody StockRequest request) {
         return inventoryService.updateInventory(id, request);
+    }
+
+    @PostMapping("/remove-stock")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN','SUPER_ADMIN')")
+    public Inventory removeStock(@Valid @RequestBody StockRequest request) {
+
+        return inventoryService.removeStock(request);
     }
 }
