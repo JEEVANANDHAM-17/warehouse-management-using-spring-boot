@@ -25,4 +25,8 @@ public class WarehousePersistenceService {
     public List<Warehouse> findAll() {
         return warehouseRepository.findAll();
     }
+
+    public long countAll() {
+        return warehouseRepository.count();
+    }
 }

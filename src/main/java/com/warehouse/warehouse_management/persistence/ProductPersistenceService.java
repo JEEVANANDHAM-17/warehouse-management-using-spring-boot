@@ -31,6 +31,10 @@ public class ProductPersistenceService {
         return productRepository.findAll();
     }
 
+    public long countAll() {
+        return productRepository.count();
+    }
+
     public Product save(Product product) {
         return productRepository.save(product);
     }

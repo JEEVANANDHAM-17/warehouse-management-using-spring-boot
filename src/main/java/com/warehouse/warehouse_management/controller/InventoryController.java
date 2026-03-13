@@ -1,11 +1,11 @@
 package com.warehouse.warehouse_management.controller;
 
+import com.warehouse.warehouse_management.dto.LowStockItemResponse;
 import com.warehouse.warehouse_management.dto.StockRequest;
 import com.warehouse.warehouse_management.entity.Inventory;
 import com.warehouse.warehouse_management.service.InventoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -39,9 +39,26 @@ public class InventoryController {
     }
 
     @PostMapping("/remove-stock")
-    @PreAuthorize("hasAnyRole('MANAGER','ADMIN','SUPER_ADMIN')")
     public Inventory removeStock(@Valid @RequestBody StockRequest request) {
 
         return inventoryService.removeStock(request);
     }
+
+    @GetMapping("/product/{productId}")
+    public List<Inventory> getByProduct(@PathVariable Long productId) {
+        return inventoryService.getInventoryByProduct(productId);
+    }
+
+    @GetMapping("/warehouse/{warehouseId}")
+    public List<Inventory> getByWarehouse(@PathVariable Long warehouseId) {
+        return inventoryService.getInventoryByWarehouse(warehouseId);
+    }
+
+    @GetMapping("/low-stock")
+    public List<LowStockItemResponse> getLowStock(
+            @RequestParam(defaultValue = "5") Integer threshold) {
+
+        return inventoryService.getLowStock(threshold);
+    }
+
 }

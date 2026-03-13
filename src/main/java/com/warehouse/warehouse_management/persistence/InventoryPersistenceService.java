@@ -27,6 +27,26 @@ public class InventoryPersistenceService {
         return inventoryRepository.findAll();
     }
 
+    public List<Inventory> findByProductId(Long productId) {
+        return inventoryRepository.findByProductId(productId);
+    }
+
+    public List<Inventory> findByWarehouseId(Long warehouseId) {
+        return inventoryRepository.findByWarehouseId(warehouseId);
+    }
+
+    public List<Inventory> findLowStock(Integer threshold) {
+        return inventoryRepository.findByQuantityLessThan(threshold);
+    }
+
+    public long countLowStock(Integer threshold) {
+        return inventoryRepository.countByQuantityLessThan(threshold);
+    }
+
+    public long sumAllQuantities() {
+        return inventoryRepository.sumAllQuantities();
+    }
+
     public Inventory save(Inventory inventory) {
         return inventoryRepository.save(inventory);
     }
