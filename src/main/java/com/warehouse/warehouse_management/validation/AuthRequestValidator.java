@@ -12,8 +12,11 @@ public class AuthRequestValidator {
 
     private final UserPersistenceService userPersistenceService;
     private final RolePersistenceService rolePersistenceService;
+    private final AuthenticatedRequestValidator authenticatedRequestValidator;
 
     public void validateRegister(RegisterRequest request) {
+        authenticatedRequestValidator.requireRole("SUPER_ADMIN");
+
         if ("ADMIN".equalsIgnoreCase(request.getRole())
                 || "SUPER_ADMIN".equalsIgnoreCase(request.getRole())) {
             throw new IllegalArgumentException("Admin creation is restricted");

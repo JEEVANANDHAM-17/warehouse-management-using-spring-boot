@@ -177,7 +177,7 @@
             if (id !== renderSeq) return;
             if (m.key === "inventory" && (!(ctx.products || []).length || !(ctx.warehouses || []).length)) return inventoryDeps();
             const fid = `${m.key}-${mode}-form`;
-            root().innerHTML = `<div class="view-grid view-grid--split"><section class="panel"><div class="panel__header"><div><p class="panel__eyebrow">${esc(m.label)}</p><h3 class="panel__title">${esc(mode === "edit" ? "Edit " + m.singular : "Create " + m.singular)}</h3><p class="panel__copy">${esc(m.desc)}</p></div><div class="panel__actions"><a class="button button--secondary" href="${esc(m.list)}">Back to list</a>${mode === "edit" ? `<a class="button button--ghost" href="#/${esc(m.key)}/view/${esc(String(item.id))}">View item</a>` : ""}</div></div><form id="${esc(fid)}" class="panel__form">${fieldHtml(m.fields(ctx), m.init(item))}<button id="${esc(fid + "-submit")}" type="submit" class="button button--primary">${esc(mode === "edit" ? "Save changes" : "Create " + m.singular)}</button></form></section>${apiPanel(m, mode === "edit" ? "update" : "create")}</div>`;
+            root().innerHTML = `<div class="view-grid view-grid--split"><section class="panel"><div class="panel__header"><div><p class="panel__eyebrow">${esc(m.label)}</p><h3 class="panel__title">${esc(mode === "edit" ? "Edit " + m.singular : "Create " + m.singular)}</h3><p class="panel__copy">${esc(m.desc)}</p></div><div class="panel__actions"><a class="button button--secondary" href="${esc(m.list)}">Back to list</a>${mode === "edit" ? `<a class="button button--ghost" href="#/${esc(m.key)}/view/${esc(String(item.id))}">View item</a>` : ""}</div></div><form id="${esc(fid)}" class="panel__form">${fieldHtml(m.fields(ctx), m.init(item))}<div class="panel__actions"><button id="${esc(fid + "-submit")}" type="submit" class="button button--primary">${esc(mode === "edit" ? "Save changes" : "Create " + m.singular)}</button><p id="${esc(fid + "-message")}" class="status-message" aria-live="polite"></p></div></form></section>${apiPanel(m, mode === "edit" ? "update" : "create")}</div>`;
             bindForm(m, mode, fid, rowId);
         }).catch((e) => error(msg(e), m.list));
     }
@@ -185,18 +185,21 @@
     function bindForm(m, mode, fid, rowId) {
         const form = $("#" + fid);
         const btn = $("#" + fid + "-submit");
+        const statusId = fid + "-message";
         form.addEventListener("submit", (e) => {
             e.preventDefault();
+            setInlineStatus(statusId, "", "");
             loading(btn, true, mode === "edit" ? "Saving..." : "Creating...");
             let body;
             try {
                 body = m.body(form);
             } catch (e2) {
                 loading(btn, false, mode === "edit" ? "Save changes" : "Create " + m.singular);
-                return flash("error", e2.message || "Invalid form input.");
+                return setInlineStatus(statusId, e2.message || "Invalid form input.", "error");
             }
             (mode === "edit" ? m.edit(rowId, body) : m.save(body))
                 .then((x) => {
+                    setInlineStatus(statusId, `${m.singular} ${mode === "edit" ? "updated" : "created"} successfully.`, "success");
                     flash("success", `${m.singular} ${mode === "edit" ? "updated" : "created"} successfully.`);
                     if (mode === "edit" && x && x.id !== undefined && x.id !== null) {
                         location.hash = `#/${m.key}/view/${x.id}`;
@@ -208,7 +211,11 @@
                     }
                     location.hash = m.successRedirect || m.list || "#/overview";
                 })
-                .catch((e3) => flash("error", msg(e3)))
+                .catch((e3) => {
+                    const message = msg(e3);
+                    setInlineStatus(statusId, message, "error");
+                    flash("error", message);
+                })
                 .finally(() => loading(btn, false, mode === "edit" ? "Save changes" : "Create " + m.singular));
         });
     }
@@ -326,19 +333,22 @@
             xhr.onload = () => {
                 const out = parse(xhr.responseText);
                 if (xhr.status >= 200 && xhr.status < 300) return resolve(out);
-                if (xhr.status === 401 && !url.startsWith("/auth/")) {
-                    clearToken();
-                    return goLogin();
-                }
-                reject({ response: out });
+                reject({ status: xhr.status, response: out });
             };
-            xhr.onerror = () => reject({ response: { message: "Network error" } });
+            xhr.onerror = () => reject({ status: 0, response: { message: "Network error" } });
             xhr.send(body !== undefined && body !== null ? JSON.stringify(body) : null);
         });
     }
 
     function parse(textValue) { if (!textValue) return null; try { return JSON.parse(textValue); } catch { return textValue; } }
-    function msg(err) { return err && err.message ? err.message : err && err.response && err.response.message ? err.response.message : typeof err?.response === "string" ? err.response : "Unexpected error"; }
+    function msg(err) {
+        if (err && err.message) return err.message;
+        if (err && err.status === 401) return err?.response?.message || "Unauthorized. Please sign in again.";
+        if (err && err.status === 403) return err?.response?.message || "Forbidden. You do not have access to this action.";
+        if (err && err.response && err.response.message) return err.response.message;
+        if (typeof err?.response === "string") return err.response;
+        return "Unexpected error";
+    }
     function metric(label, value, copy) { return `<article class="metric-card"><p class="metric-label">${esc(label)}</p><strong>${esc(String(value))}</strong><p>${esc(copy)}</p></article>`; }
     function moduleCard(m, count, copy) { return `<article class="summary-card"><p class="metric-label">${esc(m.label)}</p><h3>${esc(String(count))} records</h3><p>${esc(copy)}</p><div class="panel__actions"><a class="button button--secondary" href="${esc(m.list)}">Open list</a><a class="button button--ghost" href="${esc(m.create)}">Create</a></div></article>`; }
     function summaryCards(items) { return items.map(([a, b, c]) => `<article class="summary-card"><p class="metric-label">${esc(a)}</p><h3>${esc(b)}</h3><p>${esc(c || "")}</p></article>`).join(""); }
@@ -360,6 +370,13 @@
 
     function setStatus(textValue, type) {
         const box = $("#message");
+        if (!box) return;
+        box.textContent = textValue;
+        box.className = "status-message" + (type ? " status-message--" + type : "");
+    }
+
+    function setInlineStatus(id, textValue, type) {
+        const box = $("#" + id);
         if (!box) return;
         box.textContent = textValue;
         box.className = "status-message" + (type ? " status-message--" + type : "");
