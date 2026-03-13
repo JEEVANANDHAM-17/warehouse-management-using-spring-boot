@@ -3,6 +3,8 @@ package com.warehouse.warehouse_management.persistence;
 import com.warehouse.warehouse_management.entity.Product;
 import com.warehouse.warehouse_management.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -29,6 +31,10 @@ public class ProductPersistenceService {
 
     public List<Product> findAll() {
         return productRepository.findAll();
+    }
+
+    public Page<Product> search(String name, String sku, Pageable pageable) {
+        return productRepository.search(name, sku, pageable);
     }
 
     public List<Product> search(String name, String sku) {

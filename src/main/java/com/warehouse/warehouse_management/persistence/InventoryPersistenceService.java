@@ -5,6 +5,8 @@ import com.warehouse.warehouse_management.dto.LowStockItemResponse;
 import com.warehouse.warehouse_management.entity.Inventory;
 import com.warehouse.warehouse_management.repository.InventoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -35,6 +37,10 @@ public class InventoryPersistenceService {
 
     public List<Inventory> findByWarehouseId(Long warehouseId) {
         return inventoryRepository.findByWarehouseId(warehouseId);
+    }
+
+    public Page<InventoryViewResponse> findInventoryView(Pageable pageable) {
+        return inventoryRepository.findInventoryView(pageable);
     }
 
     public List<InventoryViewResponse> findInventoryView() {

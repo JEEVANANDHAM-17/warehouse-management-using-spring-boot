@@ -2,6 +2,7 @@ package com.warehouse.warehouse_management.controller;
 
 import com.warehouse.warehouse_management.dto.InventoryViewResponse;
 import com.warehouse.warehouse_management.dto.LowStockItemResponse;
+import com.warehouse.warehouse_management.dto.PageResponse;
 import com.warehouse.warehouse_management.dto.StockRequest;
 import com.warehouse.warehouse_management.entity.Inventory;
 import com.warehouse.warehouse_management.service.InventoryService;
@@ -30,8 +31,10 @@ public class InventoryController {
     }
 
     @GetMapping("/view")
-    public List<InventoryViewResponse> getView() {
-        return inventoryService.getInventoryView();
+    public PageResponse<InventoryViewResponse> getView(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return inventoryService.getInventoryView(page, size);
     }
 
     @GetMapping("/{id}")

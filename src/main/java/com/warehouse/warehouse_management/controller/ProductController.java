@@ -1,13 +1,12 @@
 package com.warehouse.warehouse_management.controller;
 
 import com.warehouse.warehouse_management.dto.CreateProductRequest;
+import com.warehouse.warehouse_management.dto.PageResponse;
 import com.warehouse.warehouse_management.entity.Product;
 import com.warehouse.warehouse_management.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/products")
@@ -23,10 +22,12 @@ public class ProductController {
     }
 
     @GetMapping
-    public List<Product> getAll(
+    public PageResponse<Product> getAll(
             @RequestParam(required = false) String name,
-            @RequestParam(required = false) String sku) {
-        return productService.getAllProducts(name, sku);
+            @RequestParam(required = false) String sku,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return productService.getAllProducts(name, sku, page, size);
     }
 
     @GetMapping("/{id}")
