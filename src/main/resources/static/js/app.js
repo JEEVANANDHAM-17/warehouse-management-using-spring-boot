@@ -86,6 +86,35 @@
             details: (x) => [["Product", pName(x.product), pSku(x.product)], ["Warehouse", wName(x.warehouse), wLoc(x.warehouse)], ["Quantity", intNum(x.quantity) + " units"], ["Record ID", "#" + x.id]],
             title: (x) => pName(x.product), sub: (x) => wName(x.warehouse),
             save: (b) => api("POST", "/inventory/add-stock", b), edit: (id, b) => api("PUT", "/inventory/" + encodeURIComponent(id), b)
+        },
+        orders: {
+            key: "orders", label: "Orders", singular: "Order", list: "#/orders/list", create: "#/orders/create",
+            desc: "Create outbound orders, review fulfillment totals, and inspect line-item details.",
+            endpoints: [["GET", "/orders", "List all orders"], ["GET", "/orders/{id}", "Open a single order"], ["POST", "/orders", "Create a new order"]],
+            payloads: { create: { warehouseId: 1, customerName: "Acme Corp", items: [{ productId: 1, quantity: 2 }] } },
+            listFn: () => api("GET", "/orders"),
+            one: (id) => api("GET", "/orders/" + encodeURIComponent(id)),
+            ctx: () => Promise.all([api("GET", "/products"), api("GET", "/warehouses")]).then(([products, warehouses]) => ({ products, warehouses })),
+            fields: () => [],
+            formHtml: (ctx, values, fid, mode) => orderFormHtml(ctx, values, fid, mode),
+            initForm: (fid, ctx) => bindOrderBuilder(fid, ctx),
+            init: (x) => ({
+                warehouseId: x ? x.warehouseId : "",
+                customerName: x ? (x.customerName || "") : "",
+                items: x && Array.isArray(x.items) && x.items.length
+                    ? x.items.map((item) => ({ productId: item.productId, quantity: item.quantity }))
+                    : [{ productId: "", quantity: 1 }]
+            }),
+            body: (f) => orderBody(f),
+            cols: [["Order", (x) => pairCell(x.orderNumber || "Order", x.status || "Unknown status")], ["Warehouse", (x) => pairCell(x.warehouseName || "Unknown warehouse", x.customerName || "No customer")], ["Total", (x) => badge(money(x.totalAmount))], ["Created By", (x) => pairCell(x.createdByName || "Unknown user", x.createdByEmail || "No email")], ["Placed", (x) => esc(dt(x.createdAt))]],
+            search: (x) => [x.id, x.orderNumber, x.warehouseName, x.customerName, x.status, x.totalAmount, x.createdByName, x.createdByEmail, x.createdAt, x.totalItems].join(" "),
+            cards: (x) => [["Order Number", x.orderNumber || "Not assigned", "Generated at creation time"], ["Warehouse", x.warehouseName || "Unknown warehouse", "Fulfillment location"], ["Status", x.status || "Unknown", "Current order state"], ["Total Amount", money(x.totalAmount), "Combined line-item value"]],
+            details: (x) => [["Customer", x.customerName || "No customer name"], ["Created By", x.createdByName || "Unknown user", x.createdByEmail || "No email"], ["Created At", dt(x.createdAt)], ["Order ID", "#" + x.id]],
+            title: (x) => x.orderNumber || ("Order #" + x.id), sub: (x) => x.warehouseName || "Order detail",
+            save: (b) => api("POST", "/orders", b),
+            edit: () => Promise.reject(new Error("Order edit is not available.")),
+            editable: false,
+            detailExtra: (x) => orderItemsHtml(x.items)
         }
     };
 
@@ -140,7 +169,7 @@
         if (r.act === "list") return listView(m, id);
         if (r.act === "create") return formView(m, "create", id);
         if (r.act === "view" && r.id) return detailView(m, id, r.id);
-        if (r.act === "edit" && r.id) return formView(m, "edit", id, r.id);
+        if (r.act === "edit" && r.id) return m.editable === false ? missing("Edit is not available for this module.", m.list) : formView(m, "edit", id, r.id);
         missing("This page could not be resolved.", m.list);
     }
 
@@ -166,7 +195,7 @@
         m.one(rowId).then((raw) => {
             const x = asItem(raw);
             if (id !== renderSeq) return;
-            root().innerHTML = `<div class="view-grid view-grid--split"><section class="detail-panel section-stack"><div class="detail-panel__header"><div><p class="panel__eyebrow">${esc(m.label)} detail</p><h3 class="panel__title">${esc(m.title(x))}</h3><p class="detail-subtitle">${esc(m.sub(x))}</p></div><div class="detail-actions"><a class="button button--secondary" href="${esc(m.list)}">Back to list</a><a class="button button--primary" href="#/${esc(m.key)}/edit/${esc(String(x.id))}">Edit</a></div></div><div class="summary-grid">${summaryCards(m.cards(x))}</div><div class="detail-grid">${detailCards(m.details(x))}</div></section>${apiPanel(m, "update")}</div>`;
+            root().innerHTML = `<div class="view-grid view-grid--split"><section class="detail-panel section-stack"><div class="detail-panel__header"><div><p class="panel__eyebrow">${esc(m.label)} detail</p><h3 class="panel__title">${esc(m.title(x))}</h3><p class="detail-subtitle">${esc(m.sub(x))}</p></div><div class="detail-actions"><a class="button button--secondary" href="${esc(m.list)}">Back to list</a>${m.editable === false ? "" : `<a class="button button--primary" href="#/${esc(m.key)}/edit/${esc(String(x.id))}">Edit</a>`}</div></div><div class="summary-grid">${summaryCards(m.cards(x))}</div><div class="detail-grid">${detailCards(m.details(x))}</div>${m.detailExtra ? m.detailExtra(x) : ""}</section>${apiPanel(m, "update")}</div>`;
         }).catch((e) => error(msg(e), m.list));
     }
 
@@ -176,8 +205,13 @@
             const item = itemRaw ? asItem(itemRaw) : null;
             if (id !== renderSeq) return;
             if (m.key === "inventory" && (!(ctx.products || []).length || !(ctx.warehouses || []).length)) return inventoryDeps();
+            if (m.key === "orders" && (!(ctx.products || []).length || !(ctx.warehouses || []).length)) return orderDeps();
             const fid = `${m.key}-${mode}-form`;
-            root().innerHTML = `<div class="view-grid view-grid--split"><section class="panel"><div class="panel__header"><div><p class="panel__eyebrow">${esc(m.label)}</p><h3 class="panel__title">${esc(mode === "edit" ? "Edit " + m.singular : "Create " + m.singular)}</h3><p class="panel__copy">${esc(m.desc)}</p></div><div class="panel__actions"><a class="button button--secondary" href="${esc(m.list)}">Back to list</a>${mode === "edit" ? `<a class="button button--ghost" href="#/${esc(m.key)}/view/${esc(String(item.id))}">View item</a>` : ""}</div></div><form id="${esc(fid)}" class="panel__form">${fieldHtml(m.fields(ctx), m.init(item))}<div class="panel__actions"><button id="${esc(fid + "-submit")}" type="submit" class="button button--primary">${esc(mode === "edit" ? "Save changes" : "Create " + m.singular)}</button><p id="${esc(fid + "-message")}" class="status-message" aria-live="polite"></p></div></form></section>${apiPanel(m, mode === "edit" ? "update" : "create")}</div>`;
+            const bodyHtml = m.formHtml
+                ? m.formHtml(ctx, m.init(item), fid, mode)
+                : `${fieldHtml(m.fields(ctx), m.init(item))}<div class="panel__actions"><button id="${esc(fid + "-submit")}" type="submit" class="button button--primary">${esc(mode === "edit" ? "Save changes" : "Create " + m.singular)}</button><p id="${esc(fid + "-message")}" class="status-message" aria-live="polite"></p></div>`;
+            root().innerHTML = `<div class="view-grid view-grid--split"><section class="panel"><div class="panel__header"><div><p class="panel__eyebrow">${esc(m.label)}</p><h3 class="panel__title">${esc(mode === "edit" ? "Edit " + m.singular : "Create " + m.singular)}</h3><p class="panel__copy">${esc(m.desc)}</p></div><div class="panel__actions"><a class="button button--secondary" href="${esc(m.list)}">Back to list</a>${mode === "edit" ? `<a class="button button--ghost" href="#/${esc(m.key)}/view/${esc(String(item.id))}">View item</a>` : ""}</div></div><form id="${esc(fid)}" class="panel__form">${bodyHtml}</form></section>${apiPanel(m, mode === "edit" ? "update" : "create")}</div>`;
+            if (m.initForm) m.initForm(fid, ctx, item, mode);
             bindForm(m, mode, fid, rowId);
         }).catch((e) => error(msg(e), m.list));
     }
@@ -234,7 +268,7 @@
 
     function normalizeCtx(m, ctx) {
         if (!ctx || typeof ctx !== "object") return ctx || {};
-        if (m.key === "inventory") {
+        if (m.key === "inventory" || m.key === "orders") {
             return {
                 ...ctx,
                 products: asList(ctx.products),
@@ -245,7 +279,7 @@
     }
 
     function tableHtml(m, items) {
-        return `<div class="table-panel__toolbar"><label class="field search-box"><span>Search</span><input id="${esc(m.key + "-search")}" type="search" placeholder="Search ${esc(m.label.toLowerCase())}"></label><span id="${esc(m.key + "-count")}" class="helper-chip">Showing ${items.length} of ${items.length}</span></div><div class="table-wrap"><table><thead><tr>${m.cols.map(([h]) => `<th>${esc(h)}</th>`).join("")}<th>Actions</th></tr></thead><tbody>${items.map((x) => `<tr data-row-search="${esc(low(m.search(x)))}">${m.cols.map(([, fn]) => `<td>${fn(x)}</td>`).join("")}<td><div class="table-actions"><a class="button button--ghost" href="#/${esc(m.key)}/view/${esc(String(x.id))}">View</a><a class="button button--secondary" href="#/${esc(m.key)}/edit/${esc(String(x.id))}">Edit</a></div></td></tr>`).join("")}</tbody></table></div>`;
+        return `<div class="table-panel__toolbar"><label class="field search-box"><span>Search</span><input id="${esc(m.key + "-search")}" type="search" placeholder="Search ${esc(m.label.toLowerCase())}"></label><span id="${esc(m.key + "-count")}" class="helper-chip">Showing ${items.length} of ${items.length}</span></div><div class="table-wrap"><table><thead><tr>${m.cols.map(([h]) => `<th>${esc(h)}</th>`).join("")}<th>Actions</th></tr></thead><tbody>${items.map((x) => `<tr data-row-search="${esc(low(m.search(x)))}">${m.cols.map(([, fn]) => `<td>${fn(x)}</td>`).join("")}<td><div class="table-actions"><a class="button button--ghost" href="#/${esc(m.key)}/view/${esc(String(x.id))}">View</a>${m.editable === false ? "" : `<a class="button button--secondary" href="#/${esc(m.key)}/edit/${esc(String(x.id))}">Edit</a>`}</div></td></tr>`).join("")}</tbody></table></div>`;
     }
 
     function bindSearch(m, total) {
@@ -290,8 +324,67 @@
         return `<div class="table-wrap"><table><thead><tr><th>Product</th><th>Warehouse</th><th>Quantity</th><th>Reorder Level</th></tr></thead><tbody>${items.map((x) => `<tr><td>${pairCell(x.productName || "Unknown product", x.productSku || "No SKU")}</td><td>${pairCell(x.warehouseName || "Unknown warehouse", x.warehouseLocation || "No location")}</td><td>${badge(intNum(x.quantity) + " units")}</td><td>${badge(intNum(x.reorderLevel) + " units")}</td></tr>`).join("")}</tbody></table></div>`;
     }
 
+    function orderFormHtml(ctx, values, fid, mode) {
+        const rows = Array.isArray(values.items) && values.items.length ? values.items : [{ productId: "", quantity: 1 }];
+        return `<label class="field"><span>Warehouse</span><select name="warehouseId" required><option value="">Select warehouse</option>${(ctx.warehouses || []).map((w) => `<option value="${esc(String(w.id))}"${String(w.id) === String(values.warehouseId || "") ? " selected" : ""}>${esc(`${w.name} - ${w.location}`)}</option>`).join("")}</select><span class="field__help">Loaded from GET /warehouses.</span></label><label class="field"><span>Customer Name</span><input name="customerName" type="text" value="${esc(String(values.customerName || ""))}" placeholder="Acme Corp"></label><div class="section-stack"><div class="panel__actions"><div><span>Order Items</span><p class="panel__copy">Choose one or more products with quantities.</p></div><button id="${esc(fid + "-add-item")}" type="button" class="button button--secondary">Add item</button></div><div id="${esc(fid + "-items")}" class="section-stack">${rows.map((item, index) => orderItemRowHtml(ctx.products || [], item, index)).join("")}</div></div><div class="panel__actions"><button id="${esc(fid + "-submit")}" type="submit" class="button button--primary">${esc(mode === "edit" ? "Save changes" : "Create " + "Order")}</button><p id="${esc(fid + "-message")}" class="status-message" aria-live="polite"></p></div>`;
+    }
+
+    function orderItemRowHtml(products, item, index) {
+        const row = item || {};
+        return `<div class="detail-card order-item-row" data-order-item-row><div class="panel__actions"><strong>Item ${index + 1}</strong><button type="button" class="button button--ghost" data-order-remove>Remove</button></div><label class="field"><span>Product</span><select data-order-product required><option value="">Select product</option>${products.map((p) => `<option value="${esc(String(p.id))}"${String(p.id) === String(row.productId || "") ? " selected" : ""}>${esc(`${p.name} (${p.sku})`)}</option>`).join("")}</select></label><label class="field"><span>Quantity</span><input data-order-qty type="number" min="1" step="1" value="${esc(String(row.quantity || 1))}" required></label></div>`;
+    }
+
+    function bindOrderBuilder(fid, ctx) {
+        const addBtn = $("#" + fid + "-add-item");
+        const items = $("#" + fid + "-items");
+        if (!addBtn || !items) return;
+
+        const renderIndexes = () => {
+            [...items.querySelectorAll("[data-order-item-row]")].forEach((row, index) => {
+                const title = row.querySelector("strong");
+                if (title) title.textContent = `Item ${index + 1}`;
+            });
+        };
+
+        const addRow = (item) => {
+            items.insertAdjacentHTML("beforeend", orderItemRowHtml(ctx.products || [], item || {}, items.querySelectorAll("[data-order-item-row]").length));
+            renderIndexes();
+        };
+
+        addBtn.addEventListener("click", () => addRow({ productId: "", quantity: 1 }));
+        items.addEventListener("click", (e) => {
+            const btn = e.target.closest("[data-order-remove]");
+            if (!btn) return;
+            const rows = items.querySelectorAll("[data-order-item-row]");
+            if (rows.length === 1) return;
+            const row = btn.closest("[data-order-item-row]");
+            if (row) row.remove();
+            renderIndexes();
+        });
+    }
+
+    function orderBody(form) {
+        const warehouseId = whole(form.warehouseId.value);
+        const customerName = text(form.customerName.value);
+        const rows = [...form.querySelectorAll("[data-order-item-row]")];
+        if (!rows.length) throw new Error("Add at least one order item.");
+        const items = rows.map((row) => ({
+            productId: whole(row.querySelector("[data-order-product]").value),
+            quantity: whole(row.querySelector("[data-order-qty]").value)
+        }));
+        if (items.some((item) => item.quantity < 1)) throw new Error("Quantity must be at least 1.");
+        return { warehouseId, customerName: customerName || null, items };
+    }
+
+    function orderItemsHtml(items) {
+        const rows = Array.isArray(items) ? items : [];
+        if (!rows.length) return "";
+        return `<section class="panel"><div class="panel__header"><div><p class="panel__eyebrow">Order items</p><h3 class="panel__title">Line items</h3><p class="panel__copy">Products and quantities included in this order.</p></div></div><div class="table-wrap"><table><thead><tr><th>Product</th><th>Quantity</th><th>Unit Price</th><th>Line Total</th></tr></thead><tbody>${rows.map((item) => `<tr><td>${pairCell(item.productName || "Unknown product", item.productSku || "No SKU")}</td><td>${badge(intNum(item.quantity) + " units")}</td><td>${badge(money(item.unitPrice))}</td><td>${badge(money(item.lineTotal))}</td></tr>`).join("")}</tbody></table></div></section>`;
+    }
+
     function emptyState(m) { return `<div class="empty-state"><div><h3>No ${esc(m.label.toLowerCase())} yet</h3><p>Create the first ${esc(m.singular.toLowerCase())} to populate this module.</p><a class="button button--primary" href="${esc(m.create)}">Create ${esc(m.singular)}</a></div></div>`; }
     function inventoryDeps() { root().innerHTML = '<div class="empty-state"><div><h3>Inventory needs products and warehouses first</h3><p>Create at least one product and one warehouse before adding or editing inventory records.</p><div class="panel__actions"><a class="button button--secondary" href="#/products/create">Create product</a><a class="button button--primary" href="#/warehouses/create">Create warehouse</a></div></div></div>'; }
+    function orderDeps() { root().innerHTML = '<div class="empty-state"><div><h3>Orders need products and warehouses first</h3><p>Create at least one product and one warehouse before placing an order.</p><div class="panel__actions"><a class="button button--secondary" href="#/products/create">Create product</a><a class="button button--primary" href="#/warehouses/create">Create warehouse</a></div></div></div>'; }
     function missing(message, routeTo) { root().innerHTML = `<div class="empty-state"><div><h3>Page unavailable</h3><p>${esc(message)}</p><a class="button button--primary" href="${esc(routeTo || "#/overview")}">Go back</a></div></div>`; }
     function error(message, routeTo) { missing(message || "Something went wrong while loading this view.", routeTo || "#/overview"); }
 
@@ -395,6 +488,11 @@
     function whole(value) { const out = parseInt(value, 10); if (!Number.isInteger(out)) throw new Error("Enter a valid whole number."); return out; }
     function money(value) { return value === null || value === undefined || value === "" ? "Not set" : moneyFmt.format(Number(value)); }
     function intNum(value) { return value === null || value === undefined || value === "" ? "0" : String(value); }
+    function dt(value) {
+        if (!value) return "Not available";
+        const out = new Date(value);
+        return Number.isNaN(out.getTime()) ? String(value) : out.toLocaleString();
+    }
     function pName(x) { return x && x.name ? x.name : "Unknown product"; }
     function pSku(x) { return x && x.sku ? x.sku : "No SKU"; }
     function wName(x) { return x && x.name ? x.name : "Unknown warehouse"; }
