@@ -10,8 +10,14 @@ public class JacksonConfig {
 
     @Bean
     public ObjectMapper objectMapper() {
-        return JsonMapper.builder()
-                .findAndAddModules()
-                .build();
+
+        ObjectMapper mapper = new ObjectMapper();
+
+        mapper.activateDefaultTyping(
+                mapper.getPolymorphicTypeValidator(),
+                ObjectMapper.DefaultTyping.NON_FINAL
+        );
+
+        return mapper;
     }
 }
