@@ -23,8 +23,10 @@ public class ProductController {
     }
 
     @GetMapping
-    public List<Product> getAll() {
-        return productService.getAllProducts();
+    public List<Product> getAll(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String sku) {
+        return productService.getAllProducts(name, sku);
     }
 
     @GetMapping("/{id}")

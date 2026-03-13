@@ -1,5 +1,6 @@
 package com.warehouse.warehouse_management.controller;
 
+import com.warehouse.warehouse_management.dto.InventoryViewResponse;
 import com.warehouse.warehouse_management.dto.LowStockItemResponse;
 import com.warehouse.warehouse_management.dto.StockRequest;
 import com.warehouse.warehouse_management.entity.Inventory;
@@ -26,6 +27,11 @@ public class InventoryController {
     @GetMapping
     public List<Inventory> getAll() {
         return inventoryService.getAllInventory();
+    }
+
+    @GetMapping("/view")
+    public List<InventoryViewResponse> getView() {
+        return inventoryService.getInventoryView();
     }
 
     @GetMapping("/{id}")
@@ -55,10 +61,8 @@ public class InventoryController {
     }
 
     @GetMapping("/low-stock")
-    public List<LowStockItemResponse> getLowStock(
-            @RequestParam(defaultValue = "5") Integer threshold) {
-
-        return inventoryService.getLowStock(threshold);
+    public List<LowStockItemResponse> getLowStock() {
+        return inventoryService.getLowStock();
     }
 
 }

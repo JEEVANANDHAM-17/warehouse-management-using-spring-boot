@@ -1,5 +1,7 @@
 package com.warehouse.warehouse_management.persistence;
 
+import com.warehouse.warehouse_management.dto.InventoryViewResponse;
+import com.warehouse.warehouse_management.dto.LowStockItemResponse;
 import com.warehouse.warehouse_management.entity.Inventory;
 import com.warehouse.warehouse_management.repository.InventoryRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,12 +37,16 @@ public class InventoryPersistenceService {
         return inventoryRepository.findByWarehouseId(warehouseId);
     }
 
-    public List<Inventory> findLowStock(Integer threshold) {
-        return inventoryRepository.findByQuantityLessThan(threshold);
+    public List<InventoryViewResponse> findInventoryView() {
+        return inventoryRepository.findInventoryView();
     }
 
-    public long countLowStock(Integer threshold) {
-        return inventoryRepository.countByQuantityLessThan(threshold);
+    public List<LowStockItemResponse> findLowStock() {
+        return inventoryRepository.findLowStock();
+    }
+
+    public long countLowStock() {
+        return inventoryRepository.countLowStock();
     }
 
     public long sumAllQuantities() {

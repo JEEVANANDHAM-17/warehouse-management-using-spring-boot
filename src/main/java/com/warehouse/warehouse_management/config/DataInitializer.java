@@ -2,6 +2,7 @@ package com.warehouse.warehouse_management.config;
 
 import com.warehouse.warehouse_management.entity.Role;
 import com.warehouse.warehouse_management.entity.User;
+import com.warehouse.warehouse_management.repository.ProductRepository;
 import com.warehouse.warehouse_management.repository.RoleRepository;
 import com.warehouse.warehouse_management.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
+    private final ProductRepository productRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -26,6 +28,7 @@ public class DataInitializer implements CommandLineRunner {
         createRoleIfNotExists("STAFF");
 
         createDefaultSuperAdmin();
+        assignDefaultReorderLevels();
     }
 
     private void createRoleIfNotExists(String roleName) {
@@ -53,5 +56,14 @@ public class DataInitializer implements CommandLineRunner {
 
             userRepository.save(user);
         }
+    }
+
+    private void assignDefaultReorderLevels() {
+        productRepository.findAll().stream()
+                .filter(product -> product.getReorderLevel() == null || product.getReorderLevel() <= 0)
+                .forEach(product -> {
+                    product.setReorderLevel(5);
+                    productRepository.save(product);
+                });
     }
 }

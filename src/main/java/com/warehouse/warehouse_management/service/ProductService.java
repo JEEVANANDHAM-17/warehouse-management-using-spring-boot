@@ -13,6 +13,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProductService {
 
+    private static final int DEFAULT_REORDER_LEVEL = 5;
+
     private final ProductPersistenceService productPersistenceService;
     private final ProductRequestValidator productRequestValidator;
 
@@ -24,14 +26,15 @@ public class ProductService {
                 .name(request.getName())
                 .description(request.getDescription())
                 .price(request.getPrice())
+                .reorderLevel(resolveReorderLevel(request.getReorderLevel(), DEFAULT_REORDER_LEVEL))
                 .build();
 
         return productPersistenceService.save(product);
     }
 
-    public List<Product> getAllProducts() {
+    public List<Product> getAllProducts(String name, String sku) {
         productRequestValidator.validateReadAccess();
-        return productPersistenceService.findAll();
+        return productPersistenceService.search(normalize(name), normalize(sku));
     }
 
     public Product getProduct(Long productId) {
@@ -46,7 +49,29 @@ public class ProductService {
         product.setName(request.getName());
         product.setDescription(request.getDescription());
         product.setPrice(request.getPrice());
+        product.setReorderLevel(resolveReorderLevel(request.getReorderLevel(), product.getReorderLevel()));
 
         return productPersistenceService.save(product);
+    }
+
+    private Integer resolveReorderLevel(Integer requestedValue, Integer fallbackValue) {
+        if (requestedValue != null) {
+            return requestedValue;
+        }
+
+        if (fallbackValue != null && fallbackValue > 0) {
+            return fallbackValue;
+        }
+
+        return DEFAULT_REORDER_LEVEL;
+    }
+
+    private String normalize(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmedValue = value.trim();
+        return trimmedValue.isEmpty() ? null : trimmedValue;
     }
 }

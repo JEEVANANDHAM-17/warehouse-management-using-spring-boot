@@ -4,10 +4,10 @@ public record LowStockItemResponse(
         Long productId,
         String productName,
         String productSku,
+        Integer reorderLevel,
         Long warehouseId,
         String warehouseName,
         String warehouseLocation,
-        Integer quantity,
-        Integer threshold
+        Integer quantity
 ) {
 }

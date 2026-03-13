@@ -8,18 +8,18 @@
         products: {
             key: "products", label: "Products", singular: "Product", list: "#/products/list", create: "#/products/create",
             desc: "Manage the product catalog, pricing, and SKU-level details.",
-            endpoints: [["GET", "/products", "List all products"], ["GET", "/products/{id}", "Open a single product"], ["POST", "/products", "Create a product"], ["PUT", "/products/{id}", "Update a product"]],
-            payloads: { create: { sku: "PRD-1001", name: "Forklift Battery", description: "High-cycle battery pack", price: 799.99 }, update: { sku: "PRD-1001", name: "Forklift Battery", description: "Updated specification", price: 849.99 } },
+            endpoints: [["GET", "/products?name=...&sku=...", "List products or filter by name and SKU"], ["GET", "/products/{id}", "Open a single product"], ["POST", "/products", "Create a product"], ["PUT", "/products/{id}", "Update a product"]],
+            payloads: { create: { sku: "PRD-1001", name: "Forklift Battery", description: "High-cycle battery pack", price: 799.99, reorderLevel: 15 }, update: { sku: "PRD-1001", name: "Forklift Battery", description: "Updated specification", price: 849.99, reorderLevel: 20 } },
             listFn: () => api("GET", "/products"),
             one: (id) => api("GET", "/products/" + encodeURIComponent(id)),
             ctx: () => Promise.resolve({}),
-            fields: () => [{ n: "sku", l: "SKU", t: "text", p: "PRD-1001", r: true }, { n: "name", l: "Name", t: "text", p: "Forklift Battery", r: true }, { n: "description", l: "Description", t: "textarea", p: "Optional product notes" }, { n: "price", l: "Price", t: "number", p: "799.99", r: true, min: "0.01", step: "0.01" }],
-            init: (x) => ({ sku: x ? x.sku : "", name: x ? x.name : "", description: x ? (x.description || "") : "", price: x ? x.price : "" }),
-            body: (f) => ({ sku: text(f.sku.value), name: text(f.name.value), description: text(f.description.value), price: num(f.price.value) }),
-            cols: [["Product", (x) => pairCell(x.name || "Unnamed product", x.sku || "No SKU")], ["Description", (x) => esc(x.description || "No description")], ["Price", (x) => badge(money(x.price))]],
-            search: (x) => [x.id, x.sku, x.name, x.description, x.price].join(" "),
-            cards: (x) => [["Product ID", "#" + x.id, "Database identifier"], ["SKU", x.sku || "Not set", "Unique product code"], ["Price", money(x.price), "Current sale price"]],
-            details: (x) => [["Name", x.name || "Unnamed product"], ["Description", x.description || "No description provided"], ["SKU", x.sku || "No SKU"], ["Price", money(x.price)]],
+            fields: () => [{ n: "sku", l: "SKU", t: "text", p: "PRD-1001", r: true }, { n: "name", l: "Name", t: "text", p: "Forklift Battery", r: true }, { n: "description", l: "Description", t: "textarea", p: "Optional product notes" }, { n: "price", l: "Price", t: "number", p: "799.99", r: true, min: "0.01", step: "0.01" }, { n: "reorderLevel", l: "Reorder Level", t: "number", p: "15", r: true, min: "1", step: "1", h: "Used by low-stock alerts and dashboard warnings." }],
+            init: (x) => ({ sku: x ? x.sku : "", name: x ? x.name : "", description: x ? (x.description || "") : "", price: x ? x.price : "", reorderLevel: x && x.reorderLevel ? x.reorderLevel : 5 }),
+            body: (f) => ({ sku: text(f.sku.value), name: text(f.name.value), description: text(f.description.value), price: num(f.price.value), reorderLevel: whole(f.reorderLevel.value) }),
+            cols: [["Product", (x) => pairCell(x.name || "Unnamed product", x.sku || "No SKU")], ["Description", (x) => esc(x.description || "No description")], ["Price", (x) => badge(money(x.price))], ["Reorder", (x) => badge(intNum(x.reorderLevel) + " units")]],
+            search: (x) => [x.id, x.sku, x.name, x.description, x.price, x.reorderLevel].join(" "),
+            cards: (x) => [["Product ID", "#" + x.id, "Database identifier"], ["SKU", x.sku || "Not set", "Unique product code"], ["Price", money(x.price), "Current sale price"], ["Reorder Level", intNum(x.reorderLevel) + " units", "Low-stock threshold"]],
+            details: (x) => [["Name", x.name || "Unnamed product"], ["Description", x.description || "No description provided"], ["SKU", x.sku || "No SKU"], ["Price", money(x.price)], ["Reorder Level", intNum(x.reorderLevel) + " units"]],
             title: (x) => x.name || "Unnamed product", sub: (x) => x.sku || "Catalog detail",
             save: (b) => api("POST", "/products", b), edit: (id, b) => api("PUT", "/products/" + encodeURIComponent(id), b)
         },
@@ -44,16 +44,16 @@
         inventory: {
             key: "inventory", label: "Inventory", singular: "Inventory Item", list: "#/inventory/list", create: "#/inventory/create",
             desc: "Track stock by product and warehouse with edit-ready inventory records.",
-            endpoints: [["GET", "/inventory", "List all inventory records"], ["GET", "/inventory/{id}", "Open a single stock record"], ["POST", "/inventory/add-stock", "Create or add stock"], ["PUT", "/inventory/{id}", "Update a stock record"]],
+            endpoints: [["GET", "/inventory/view", "List inventory with product and warehouse details"], ["GET", "/inventory/{id}", "Open a single stock record"], ["POST", "/inventory/add-stock", "Create or add stock"], ["PUT", "/inventory/{id}", "Update a stock record"]],
             payloads: { create: { productId: 1, warehouseId: 1, quantity: 120 }, update: { productId: 1, warehouseId: 2, quantity: 80 } },
-            listFn: () => api("GET", "/inventory"),
+            listFn: () => api("GET", "/inventory/view"),
             one: (id) => api("GET", "/inventory/" + encodeURIComponent(id)),
             ctx: () => Promise.all([api("GET", "/products"), api("GET", "/warehouses")]).then(([products, warehouses]) => ({ products, warehouses })),
             fields: (c) => [{ n: "productId", l: "Product", t: "select", r: true, h: "Loaded from GET /products.", o: (c.products || []).map((p) => ({ v: p.id, t: `${p.name} (${p.sku})` })) }, { n: "warehouseId", l: "Warehouse", t: "select", r: true, h: "Loaded from GET /warehouses.", o: (c.warehouses || []).map((w) => ({ v: w.id, t: `${w.name} - ${w.location}` })) }, { n: "quantity", l: "Quantity", t: "number", p: "120", r: true, min: "1", step: "1" }],
             init: (x) => ({ productId: x && x.product ? x.product.id : "", warehouseId: x && x.warehouse ? x.warehouse.id : "", quantity: x ? x.quantity : "" }),
             body: (f) => ({ productId: whole(f.productId.value), warehouseId: whole(f.warehouseId.value), quantity: whole(f.quantity.value) }),
-            cols: [["Product", (x) => pairCell(pName(x.product), pSku(x.product))], ["Warehouse", (x) => pairCell(wName(x.warehouse), wLoc(x.warehouse))], ["Quantity", (x) => badge(intNum(x.quantity) + " units")]],
-            search: (x) => [x.id, pName(x.product), pSku(x.product), wName(x.warehouse), wLoc(x.warehouse), x.quantity].join(" "),
+            cols: [["Product", (x) => pairCell(x.productName || "Unknown product", x.productSku || "No SKU")], ["Warehouse", (x) => pairCell(x.warehouseName || "Unknown warehouse", x.warehouseLocation || "No location")], ["Quantity", (x) => badge(intNum(x.quantity) + " units")], ["Reorder", (x) => badge(intNum(x.reorderLevel) + " units")]],
+            search: (x) => [x.id, x.productName, x.productSku, x.warehouseName, x.warehouseLocation, x.quantity, x.reorderLevel].join(" "),
             cards: (x) => [["Record ID", "#" + x.id, "Inventory identifier"], ["Product", pName(x.product), pSku(x.product)], ["Quantity", intNum(x.quantity) + " units", "Current on-hand stock"]],
             details: (x) => [["Product", pName(x.product), pSku(x.product)], ["Warehouse", wName(x.warehouse), wLoc(x.warehouse)], ["Quantity", intNum(x.quantity) + " units"], ["Record ID", "#" + x.id]],
             title: (x) => pName(x.product), sub: (x) => wName(x.warehouse),
@@ -119,7 +119,7 @@
     function overview(id) {
         Promise.all([api("GET", "/dashboard/summary"), api("GET", "/inventory/low-stock")]).then(([summary, lowStock]) => {
             if (id !== renderSeq) return;
-            root().innerHTML = `<section class="overview-panel section-stack"><div class="panel__header"><div><p class="panel__eyebrow">Overview</p><h3 class="panel__title">Live module snapshot</h3><p class="panel__copy">Summary metrics and stock warnings are now loaded from dedicated dashboard APIs.</p></div><div class="helper-chip-row"><span class="helper-chip">GET /dashboard/summary</span><span class="helper-chip">GET /inventory/low-stock</span></div></div><div class="metric-grid">${metric("Products", summary.totalProducts, "Catalog records")}${metric("Warehouses", summary.totalWarehouses, "Storage locations")}${metric("Inventory Units", summary.totalInventory, "Total on-hand quantity")}${metric("Low Stock", summary.lowStockCount, "Items below threshold")}</div></section><div class="view-grid view-grid--split"><section class="panel"><div class="panel__header"><div><p class="panel__eyebrow">Attention needed</p><h3 class="panel__title">Low stock alerts</h3><p class="panel__copy">These product and warehouse combinations are below the default threshold of 5 units.</p></div></div>${lowStockHtml(lowStock)}</section>${overviewApi()}</div>`;
+            root().innerHTML = `<section class="overview-panel section-stack"><div class="panel__header"><div><p class="panel__eyebrow">Overview</p><h3 class="panel__title">Live module snapshot</h3><p class="panel__copy">Summary metrics and stock warnings are now loaded from dedicated dashboard APIs.</p></div><div class="helper-chip-row"><span class="helper-chip">GET /dashboard/summary</span><span class="helper-chip">GET /inventory/low-stock</span></div></div><div class="metric-grid">${metric("Products", summary.totalProducts, "Catalog records")}${metric("Warehouses", summary.totalWarehouses, "Storage locations")}${metric("Inventory Units", summary.totalInventory, "Total on-hand quantity")}${metric("Low Stock", summary.lowStockCount, "Items below reorder level")}</div></section><div class="view-grid view-grid--split"><section class="panel"><div class="panel__header"><div><p class="panel__eyebrow">Attention needed</p><h3 class="panel__title">Low stock alerts</h3><p class="panel__copy">These product and warehouse combinations are below each product's configured reorder level.</p></div></div>${lowStockHtml(lowStock)}</section>${overviewApi()}</div>`;
         }).catch((e) => error(msg(e), "#/overview"));
     }
 
@@ -207,14 +207,14 @@
     }
 
     function overviewApi() {
-        return `<aside class="panel"><div class="panel__header"><div><p class="panel__eyebrow">API Payloads</p><h3 class="panel__title">Dashboard and module calls</h3><p class="panel__copy">The overview now consumes purpose-built summary and alert endpoints alongside the existing CRUD APIs.</p></div></div><div class="api-list"><div class="api-item"><span class="api-method">GET</span><span class="api-path">/dashboard/summary</span><pre>${esc(JSON.stringify({ totalProducts: 10, totalWarehouses: 3, totalInventory: 500, lowStockCount: 2 }, null, 2))}</pre></div><div class="api-item"><span class="api-method">GET</span><span class="api-path">/inventory/low-stock</span><pre>${esc(JSON.stringify([{ productName: "Laptop", warehouseName: "South Hub", quantity: 3, threshold: 5 }], null, 2))}</pre></div><div class="api-item"><span class="api-method">POST</span><span class="api-path">/auth/login</span><pre>${esc(JSON.stringify({ email: "superadmin@warehouse.com", password: "super123" }, null, 2))}</pre></div><div class="api-item"><span class="api-method">POST</span><span class="api-path">/products</span><pre>${esc(JSON.stringify(mods.products.payloads.create, null, 2))}</pre></div><div class="api-item"><span class="api-method">POST</span><span class="api-path">/inventory/add-stock</span><pre>${esc(JSON.stringify(mods.inventory.payloads.create, null, 2))}</pre></div></div></aside>`;
+        return `<aside class="panel"><div class="panel__header"><div><p class="panel__eyebrow">API Payloads</p><h3 class="panel__title">Dashboard and module calls</h3><p class="panel__copy">The overview now consumes purpose-built summary and alert endpoints alongside the existing CRUD APIs.</p></div></div><div class="api-list"><div class="api-item"><span class="api-method">GET</span><span class="api-path">/dashboard/summary</span><pre>${esc(JSON.stringify({ totalProducts: 10, totalWarehouses: 3, totalInventory: 500, lowStockCount: 2 }, null, 2))}</pre></div><div class="api-item"><span class="api-method">GET</span><span class="api-path">/inventory/low-stock</span><pre>${esc(JSON.stringify([{ productName: "Laptop", warehouseName: "South Hub", quantity: 3, reorderLevel: 5 }], null, 2))}</pre></div><div class="api-item"><span class="api-method">POST</span><span class="api-path">/auth/login</span><pre>${esc(JSON.stringify({ email: "superadmin@warehouse.com", password: "super123" }, null, 2))}</pre></div><div class="api-item"><span class="api-method">POST</span><span class="api-path">/products</span><pre>${esc(JSON.stringify(mods.products.payloads.create, null, 2))}</pre></div><div class="api-item"><span class="api-method">POST</span><span class="api-path">/inventory/add-stock</span><pre>${esc(JSON.stringify(mods.inventory.payloads.create, null, 2))}</pre></div></div></aside>`;
     }
 
     function lowStockHtml(items) {
         if (!items || !items.length) {
-            return '<div class="empty-state"><div><h3>No low stock alerts</h3><p>Everything is currently at or above the default threshold.</p></div></div>';
+            return '<div class="empty-state"><div><h3>No low stock alerts</h3><p>Everything is currently at or above each product&apos;s reorder level.</p></div></div>';
         }
-        return `<div class="table-wrap"><table><thead><tr><th>Product</th><th>Warehouse</th><th>Quantity</th><th>Threshold</th></tr></thead><tbody>${items.map((x) => `<tr><td>${pairCell(x.productName || "Unknown product", x.productSku || "No SKU")}</td><td>${pairCell(x.warehouseName || "Unknown warehouse", x.warehouseLocation || "No location")}</td><td>${badge(intNum(x.quantity) + " units")}</td><td>${badge(intNum(x.threshold) + " units")}</td></tr>`).join("")}</tbody></table></div>`;
+        return `<div class="table-wrap"><table><thead><tr><th>Product</th><th>Warehouse</th><th>Quantity</th><th>Reorder Level</th></tr></thead><tbody>${items.map((x) => `<tr><td>${pairCell(x.productName || "Unknown product", x.productSku || "No SKU")}</td><td>${pairCell(x.warehouseName || "Unknown warehouse", x.warehouseLocation || "No location")}</td><td>${badge(intNum(x.quantity) + " units")}</td><td>${badge(intNum(x.reorderLevel) + " units")}</td></tr>`).join("")}</tbody></table></div>`;
     }
 
     function emptyState(m) { return `<div class="empty-state"><div><h3>No ${esc(m.label.toLowerCase())} yet</h3><p>Create the first ${esc(m.singular.toLowerCase())} to populate this module.</p><a class="button button--primary" href="${esc(m.create)}">Create ${esc(m.singular)}</a></div></div>`; }

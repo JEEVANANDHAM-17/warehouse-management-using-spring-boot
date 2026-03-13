@@ -24,4 +24,7 @@ public class Product {
 
     private Double price;
 
+    @Column(name = "reorder_level")
+    private Integer reorderLevel = 5;
+
 }

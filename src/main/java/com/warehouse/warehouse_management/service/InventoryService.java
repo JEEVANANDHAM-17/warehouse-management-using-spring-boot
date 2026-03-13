@@ -1,5 +1,6 @@
 package com.warehouse.warehouse_management.service;
 
+import com.warehouse.warehouse_management.dto.InventoryViewResponse;
 import com.warehouse.warehouse_management.dto.LowStockItemResponse;
 import com.warehouse.warehouse_management.dto.StockRequest;
 import com.warehouse.warehouse_management.entity.Inventory;
@@ -13,7 +14,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -65,6 +65,11 @@ public class InventoryService {
     public List<Inventory> getAllInventory() {
         inventoryRequestValidator.validateReadAccess();
         return inventoryPersistenceService.findAll();
+    }
+
+    public List<InventoryViewResponse> getInventoryView() {
+        inventoryRequestValidator.validateReadAccess();
+        return inventoryPersistenceService.findInventoryView();
     }
 
     public Inventory getInventory(Long inventoryId) {
@@ -123,26 +128,14 @@ public class InventoryService {
         return inventoryPersistenceService.findByWarehouseId(warehouseId);
     }
 
-    public List<LowStockItemResponse> getLowStock(Integer threshold) {
+    public List<LowStockItemResponse> getLowStock() {
         inventoryRequestValidator.validateReadAccess();
-        return inventoryPersistenceService.findLowStock(threshold)
-                .stream()
-                .map(inventory -> new LowStockItemResponse(
-                        inventory.getProduct().getId(),
-                        inventory.getProduct().getName(),
-                        inventory.getProduct().getSku(),
-                        inventory.getWarehouse().getId(),
-                        inventory.getWarehouse().getName(),
-                        inventory.getWarehouse().getLocation(),
-                        inventory.getQuantity(),
-                        threshold
-                ))
-                .collect(Collectors.toList());
+        return inventoryPersistenceService.findLowStock();
     }
 
-    public long countLowStock(Integer threshold) {
+    public long countLowStock() {
         inventoryRequestValidator.validateReadAccess();
-        return inventoryPersistenceService.countLowStock(threshold);
+        return inventoryPersistenceService.countLowStock();
     }
 
     public long getTotalInventoryQuantity() {

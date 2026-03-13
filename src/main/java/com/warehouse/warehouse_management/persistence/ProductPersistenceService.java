@@ -31,6 +31,10 @@ public class ProductPersistenceService {
         return productRepository.findAll();
     }
 
+    public List<Product> search(String name, String sku) {
+        return productRepository.search(name, sku);
+    }
+
     public long countAll() {
         return productRepository.count();
     }

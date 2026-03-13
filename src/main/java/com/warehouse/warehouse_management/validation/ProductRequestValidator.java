@@ -45,5 +45,9 @@ public class ProductRequestValidator {
         if (request.getPrice() <= 0) {
             throw new IllegalArgumentException("Price must be greater than 0");
         }
+
+        if (request.getReorderLevel() != null && request.getReorderLevel() <= 0) {
+            throw new IllegalArgumentException("Reorder level must be greater than 0");
+        }
     }
 }
