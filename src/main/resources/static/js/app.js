@@ -5,6 +5,34 @@
     let flashTimer = 0;
 
     const mods = {
+        users: {
+            key: "users", label: "Users", singular: "User", list: "#/users/create", create: "#/users/create",
+            desc: "Create application users and assign an allowed operational role.",
+            endpoints: [["POST", "/auth/register", "Create a new user account with a selectable role"]],
+            payloads: { create: { name: "Warehouse Staff", email: "staff@warehouse.com", password: "staff123", role: "STAFF" } },
+            listFn: () => Promise.resolve([]),
+            one: () => Promise.reject(new Error("User detail view is not available.")),
+            ctx: () => Promise.resolve({}),
+            fields: () => [
+                { n: "name", l: "Name", t: "text", p: "Warehouse Staff", r: true },
+                { n: "email", l: "Email", t: "email", p: "staff@warehouse.com", r: true },
+                { n: "password", l: "Password", t: "password", p: "Enter password", r: true },
+                {
+                    n: "role", l: "Role", t: "select", r: true, h: "Allowed registration roles are MANAGER and STAFF.",
+                    o: [{ v: "STAFF", t: "STAFF" }, { v: "MANAGER", t: "MANAGER" }]
+                }
+            ],
+            init: (x) => ({ name: x ? x.name : "", email: x ? x.email : "", password: "", role: x && x.role ? x.role : "STAFF" }),
+            body: (f) => ({ name: text(f.name.value), email: text(f.email.value), password: text(f.password.value), role: text(f.role.value) }),
+            cols: [],
+            search: () => "",
+            cards: () => [],
+            details: () => [],
+            title: () => "User", sub: () => "Account detail",
+            save: (b) => api("POST", "/auth/register", b),
+            edit: () => Promise.reject(new Error("User edit is not available.")),
+            successRedirect: "#/users/create"
+        },
         products: {
             key: "products", label: "Products", singular: "Product", list: "#/products/list", create: "#/products/create",
             desc: "Manage the product catalog, pricing, and SKU-level details.",
@@ -117,14 +145,17 @@
     }
 
     function overview(id) {
-        Promise.all([api("GET", "/dashboard/summary"), api("GET", "/inventory/low-stock")]).then(([summary, lowStock]) => {
+        Promise.all([api("GET", "/dashboard/summary"), api("GET", "/inventory/low-stock")]).then(([summaryRaw, lowStockRaw]) => {
+            const summary = asItem(summaryRaw);
+            const lowStock = asList(lowStockRaw);
             if (id !== renderSeq) return;
             root().innerHTML = `<section class="overview-panel section-stack"><div class="panel__header"><div><p class="panel__eyebrow">Overview</p><h3 class="panel__title">Live module snapshot</h3><p class="panel__copy">Summary metrics and stock warnings are now loaded from dedicated dashboard APIs.</p></div><div class="helper-chip-row"><span class="helper-chip">GET /dashboard/summary</span><span class="helper-chip">GET /inventory/low-stock</span></div></div><div class="metric-grid">${metric("Products", summary.totalProducts, "Catalog records")}${metric("Warehouses", summary.totalWarehouses, "Storage locations")}${metric("Inventory Units", summary.totalInventory, "Total on-hand quantity")}${metric("Low Stock", summary.lowStockCount, "Items below reorder level")}</div></section><div class="view-grid view-grid--split"><section class="panel"><div class="panel__header"><div><p class="panel__eyebrow">Attention needed</p><h3 class="panel__title">Low stock alerts</h3><p class="panel__copy">These product and warehouse combinations are below each product's configured reorder level.</p></div></div>${lowStockHtml(lowStock)}</section>${overviewApi()}</div>`;
         }).catch((e) => error(msg(e), "#/overview"));
     }
 
     function listView(m, id) {
-        m.listFn().then((items) => {
+        m.listFn().then((itemsRaw) => {
+            const items = asList(itemsRaw);
             if (id !== renderSeq) return;
             root().innerHTML = `<div class="view-grid view-grid--split"><section class="table-panel"><div class="table-panel__header"><div><p class="panel__eyebrow">${esc(m.label)}</p><h3 class="panel__title">${esc(m.label + " list")}</h3><p class="panel__copy">${esc(m.desc)}</p></div><div class="table-actions"><a class="button button--secondary" href="${esc(m.create)}">Create ${esc(m.singular)}</a></div></div>${items.length ? tableHtml(m, items) : emptyState(m)}</section>${apiPanel(m, "create")}</div>`;
             if (items.length) bindSearch(m, items.length);
@@ -132,14 +163,17 @@
     }
 
     function detailView(m, id, rowId) {
-        m.one(rowId).then((x) => {
+        m.one(rowId).then((raw) => {
+            const x = asItem(raw);
             if (id !== renderSeq) return;
             root().innerHTML = `<div class="view-grid view-grid--split"><section class="detail-panel section-stack"><div class="detail-panel__header"><div><p class="panel__eyebrow">${esc(m.label)} detail</p><h3 class="panel__title">${esc(m.title(x))}</h3><p class="detail-subtitle">${esc(m.sub(x))}</p></div><div class="detail-actions"><a class="button button--secondary" href="${esc(m.list)}">Back to list</a><a class="button button--primary" href="#/${esc(m.key)}/edit/${esc(String(x.id))}">Edit</a></div></div><div class="summary-grid">${summaryCards(m.cards(x))}</div><div class="detail-grid">${detailCards(m.details(x))}</div></section>${apiPanel(m, "update")}</div>`;
         }).catch((e) => error(msg(e), m.list));
     }
 
     function formView(m, mode, id, rowId) {
-        Promise.all([m.ctx(), mode === "edit" ? m.one(rowId) : Promise.resolve(null)]).then(([ctx, item]) => {
+        Promise.all([m.ctx(), mode === "edit" ? m.one(rowId) : Promise.resolve(null)]).then(([ctxRaw, itemRaw]) => {
+            const ctx = normalizeCtx(m, ctxRaw);
+            const item = itemRaw ? asItem(itemRaw) : null;
             if (id !== renderSeq) return;
             if (m.key === "inventory" && (!(ctx.products || []).length || !(ctx.warehouses || []).length)) return inventoryDeps();
             const fid = `${m.key}-${mode}-form`;
@@ -164,11 +198,43 @@
             (mode === "edit" ? m.edit(rowId, body) : m.save(body))
                 .then((x) => {
                     flash("success", `${m.singular} ${mode === "edit" ? "updated" : "created"} successfully.`);
-                    location.hash = `#/${m.key}/view/${x.id}`;
+                    if (mode === "edit" && x && x.id !== undefined && x.id !== null) {
+                        location.hash = `#/${m.key}/view/${x.id}`;
+                        return;
+                    }
+                    if (mode !== "edit" && x && x.id !== undefined && x.id !== null) {
+                        location.hash = `#/${m.key}/view/${x.id}`;
+                        return;
+                    }
+                    location.hash = m.successRedirect || m.list || "#/overview";
                 })
                 .catch((e3) => flash("error", msg(e3)))
                 .finally(() => loading(btn, false, mode === "edit" ? "Save changes" : "Create " + m.singular));
         });
+    }
+
+    function asList(value) {
+        if (Array.isArray(value)) return value;
+        if (value && Array.isArray(value.data)) return value.data;
+        if (value && Array.isArray(value.content)) return value.content;
+        return [];
+    }
+
+    function asItem(value) {
+        if (value && typeof value === "object" && value.data && !Array.isArray(value.data)) return value.data;
+        return value;
+    }
+
+    function normalizeCtx(m, ctx) {
+        if (!ctx || typeof ctx !== "object") return ctx || {};
+        if (m.key === "inventory") {
+            return {
+                ...ctx,
+                products: asList(ctx.products),
+                warehouses: asList(ctx.warehouses)
+            };
+        }
+        return ctx;
     }
 
     function tableHtml(m, items) {
