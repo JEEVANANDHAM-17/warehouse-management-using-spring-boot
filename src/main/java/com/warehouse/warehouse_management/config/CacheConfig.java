@@ -1,6 +1,5 @@
 package com.warehouse.warehouse_management.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.warehouse.warehouse_management.service.CacheNames;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
@@ -25,9 +24,8 @@ import java.util.Map;
 public class CacheConfig {
 
     @Bean
-    public CacheManager cacheManager(RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
-        GenericJackson2JsonRedisSerializer serializer =
-                new GenericJackson2JsonRedisSerializer(objectMapper.copy());
+    public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+        GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer();
 
         RedisCacheConfiguration defaultConfiguration = RedisCacheConfiguration.defaultCacheConfig()
                 .disableCachingNullValues()

@@ -746,6 +746,62 @@ tbody tr:hover {
     font-size: 0.86rem;
 }
 
+.helper-chip--button {
+    appearance: none;
+}
+
+.helper-chip--button:hover {
+    background: rgba(255, 247, 237, 0.96);
+    border-color: rgba(217, 119, 6, 0.2);
+}
+
+.ai-query-form {
+    gap: 1.25rem;
+}
+
+.ai-prompt-list {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.ai-result-shell {
+    display: grid;
+    gap: 1rem;
+}
+
+.ai-answer-card {
+    padding: 1.4rem;
+    background: linear-gradient(135deg, rgba(255, 247, 237, 0.94), rgba(238, 242, 255, 0.78));
+    border: 1px solid rgba(217, 119, 6, 0.14);
+}
+
+.ai-answer-card h3 {
+    margin: 0.15rem 0 0.5rem;
+    font-size: 1.55rem;
+    line-height: 1.35;
+}
+
+.ai-list-card {
+    display: grid;
+    gap: 0.7rem;
+}
+
+.ai-bullet-list {
+    margin: 0;
+    padding-left: 1.2rem;
+    color: var(--ink);
+    line-height: 1.6;
+}
+
+.ai-bullet-list li + li {
+    margin-top: 0.5rem;
+}
+
+.ai-empty-state {
+    min-height: 14rem;
+}
+
 .field__help {
     color: var(--muted);
     font-size: 0.86rem;
@@ -806,14 +862,16 @@ tbody tr:hover {
     .workspace__actions,
     .table-actions,
     .detail-actions,
-    .panel__actions {
+    .panel__actions,
+    .ai-prompt-list {
         width: 100%;
     }
 
     .workspace__actions .button,
     .panel__actions .button,
     .table-actions .button,
-    .detail-actions .button {
+    .detail-actions .button,
+    .ai-prompt-list .helper-chip--button {
         width: 100%;
     }
 

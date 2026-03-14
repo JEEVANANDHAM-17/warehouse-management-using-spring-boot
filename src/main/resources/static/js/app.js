@@ -1,8 +1,19 @@
 (() => {
     const KEY = "warehouse.jwt";
     const moneyFmt = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+    const aiExamples = [
+        "Give me the warehouse summary",
+        "Which items are low on stock?",
+        "What are the recent orders?",
+        "How many orders do we have?",
+        "How much stock do we have for PRD-1001?"
+    ];
     let renderSeq = 0;
     let flashTimer = 0;
+    let aiState = {
+        query: "",
+        response: null
+    };
 
     const mods = {
         users: {
@@ -164,6 +175,7 @@
         setHead(r);
         root().innerHTML = '<div class="loader"><p>Loading data from the secured API...</p></div>';
         if (r.kind === "overview") return overview(id);
+        if (r.kind === "module" && r.mod === "ai") return aiView(id);
         const m = mods[r.mod];
         if (!m) return missing("This module does not exist.", "#/overview");
         if (r.act === "list") return listView(m, id);
@@ -180,6 +192,12 @@
             if (id !== renderSeq) return;
             root().innerHTML = `<section class="overview-panel section-stack"><div class="panel__header"><div><p class="panel__eyebrow">Overview</p><h3 class="panel__title">Live module snapshot</h3><p class="panel__copy">Summary metrics and stock warnings are now loaded from dedicated dashboard APIs.</p></div><div class="helper-chip-row"><span class="helper-chip">GET /dashboard/summary</span><span class="helper-chip">GET /inventory/low-stock</span></div></div><div class="metric-grid">${metric("Products", summary.totalProducts, "Catalog records")}${metric("Warehouses", summary.totalWarehouses, "Storage locations")}${metric("Inventory Units", summary.totalInventory, "Total on-hand quantity")}${metric("Low Stock", summary.lowStockCount, "Items below reorder level")}</div></section><div class="view-grid view-grid--split"><section class="panel"><div class="panel__header"><div><p class="panel__eyebrow">Attention needed</p><h3 class="panel__title">Low stock alerts</h3><p class="panel__copy">These product and warehouse combinations are below each product's configured reorder level.</p></div></div>${lowStockHtml(lowStock)}</section>${overviewApi()}</div>`;
         }).catch((e) => error(msg(e), "#/overview"));
+    }
+
+    function aiView(id) {
+        if (id !== renderSeq) return;
+        root().innerHTML = `<div class="view-grid view-grid--split"><section class="panel section-stack"><div class="panel__header"><div><p class="panel__eyebrow">AI Assistant</p><h3 class="panel__title">Ask the warehouse assistant</h3><p class="panel__copy">Send a natural-language question to <code>POST /ai/query</code>. The backend answers using live warehouse data and returns a short explanation, supporting insights, and suggested actions.</p></div></div><form id="ai-query-form" class="panel__form ai-query-form"><label class="field"><span>Question</span><textarea id="ai-query-input" name="query" placeholder="Ask about summary metrics, low stock, recent orders, or stock for a product/SKU." required>${esc(aiState.query || "")}</textarea><span class="field__help">Examples: "Give me the warehouse summary", "Which items are low on stock?", or "How much stock do we have for PRD-1001?"</span></label><div class="ai-prompt-list">${aiExamples.map((prompt) => `<button type="button" class="helper-chip helper-chip--button" data-ai-prompt="${esc(prompt)}">${esc(prompt)}</button>`).join("")}</div><div class="panel__actions"><button id="ai-query-submit" type="submit" class="button button--primary">Ask assistant</button><p id="ai-query-message" class="status-message" aria-live="polite"></p></div></form>${aiResultHtml(aiState.response)}</section>${aiApiPanel()}</div>`;
+        bindAiView();
     }
 
     function listView(m, id) {
@@ -324,6 +342,67 @@
         return `<div class="table-wrap"><table><thead><tr><th>Product</th><th>Warehouse</th><th>Quantity</th><th>Reorder Level</th></tr></thead><tbody>${items.map((x) => `<tr><td>${pairCell(x.productName || "Unknown product", x.productSku || "No SKU")}</td><td>${pairCell(x.warehouseName || "Unknown warehouse", x.warehouseLocation || "No location")}</td><td>${badge(intNum(x.quantity) + " units")}</td><td>${badge(intNum(x.reorderLevel) + " units")}</td></tr>`).join("")}</tbody></table></div>`;
     }
 
+    function bindAiView() {
+        const form = $("#ai-query-form");
+        const input = $("#ai-query-input");
+        const btn = $("#ai-query-submit");
+        if (!form || !input || !btn) return;
+
+        document.querySelectorAll("[data-ai-prompt]").forEach((chip) => {
+            chip.addEventListener("click", () => {
+                const prompt = chip.getAttribute("data-ai-prompt") || "";
+                input.value = prompt;
+                aiState.query = prompt;
+                input.focus();
+                input.setSelectionRange(input.value.length, input.value.length);
+            });
+        });
+
+        form.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const query = text(input.value);
+            if (!query) {
+                setInlineStatus("ai-query-message", "Enter a question for the assistant.", "error");
+                return;
+            }
+
+            aiState.query = query;
+            setInlineStatus("ai-query-message", "", "");
+            loading(btn, true, "Thinking...");
+
+            api("POST", "/ai/query", { query })
+                .then((response) => {
+                    aiState.response = asItem(response);
+                    aiView(renderSeq);
+                })
+                .catch((err) => {
+                    const message = msg(err);
+                    setInlineStatus("ai-query-message", message, "error");
+                    flash("error", message);
+                })
+                .finally(() => loading(btn, false, "Ask assistant"));
+        });
+    }
+
+    function aiResultHtml(response) {
+        if (!response) {
+            return `<section class="ai-result-shell"><div class="empty-state ai-empty-state"><div><h3>Ask a warehouse question</h3><p>The assistant can summarize warehouse health, flag low-stock items, report recent orders, count total orders, and check stock for products or SKUs it recognizes.</p></div></div></section>`;
+        }
+
+        const insights = Array.isArray(response.insights) ? response.insights : [];
+        const actions = Array.isArray(response.suggestedActions) ? response.suggestedActions : [];
+        return `<section class="ai-result-shell section-stack"><article class="detail-highlight ai-answer-card"><p class="panel__eyebrow">Answer</p><h3>${esc(response.answer || "No answer returned")}</h3><p class="panel__copy">Generated ${esc(dt(response.generatedAt))}</p></article><div class="detail-grid">${aiListCard("Insights", "What the assistant found", insights)}${aiListCard("Suggested Actions", "Useful next steps based on the answer", actions)}</div></section>`;
+    }
+
+    function aiListCard(title, subtitle, items) {
+        const rows = Array.isArray(items) ? items.filter(Boolean) : [];
+        return `<article class="detail-card ai-list-card"><p class="detail-label">${esc(title)}</p><div class="detail-subvalue">${esc(subtitle)}</div>${rows.length ? `<ul class="ai-bullet-list">${rows.map((item) => `<li>${esc(item)}</li>`).join("")}</ul>` : `<p class="panel__copy">No items returned.</p>`}</article>`;
+    }
+
+    function aiApiPanel() {
+        return `<aside class="panel"><div class="panel__header"><div><p class="panel__eyebrow">API Contract</p><h3 class="panel__title">AI query endpoint</h3><p class="panel__copy">This route is JWT-protected and returns a structured assistant response generated from warehouse data already in the system.</p></div></div><div class="api-list"><div class="api-item"><span class="api-method">POST</span><span class="api-path">/ai/query</span><p class="panel__copy">Submit a natural-language warehouse question in the request body.</p></div><div class="api-item"><span class="api-method">Auth</span><span class="api-path">Bearer token required</span><p class="panel__copy">The same JWT from login is attached automatically by the dashboard.</p></div><div class="api-item"><span class="api-method">Knows</span><span class="api-path">Summary, stock, orders</span><p class="panel__copy">Recognizes questions about dashboard metrics, low stock, recent orders, total order count, and product inventory by SKU or name.</p></div></div><div class="api-note"><p class="panel__copy">Example request:</p><pre>${esc(JSON.stringify({ query: "Which items are low on stock?" }, null, 2))}</pre></div><div class="api-note"><p class="panel__copy">Example response:</p><pre>${esc(JSON.stringify({ answer: "There are 2 low-stock inventory records.", insights: ["Laptop (LTP-100) at South Hub: 3 units, reorder level 5"], suggestedActions: ["Use POST /inventory/add-stock to replenish critical items."], generatedAt: "2026-03-14T10:15:00" }, null, 2))}</pre></div></aside>`;
+    }
+
     function orderFormHtml(ctx, values, fid, mode) {
         const rows = Array.isArray(values.items) && values.items.length ? values.items : [{ productId: "", quantity: 1 }];
         return `<label class="field"><span>Warehouse</span><select name="warehouseId" required><option value="">Select warehouse</option>${(ctx.warehouses || []).map((w) => `<option value="${esc(String(w.id))}"${String(w.id) === String(values.warehouseId || "") ? " selected" : ""}>${esc(`${w.name} - ${w.location}`)}</option>`).join("")}</select><span class="field__help">Loaded from GET /warehouses.</span></label><label class="field"><span>Customer Name</span><input name="customerName" type="text" value="${esc(String(values.customerName || ""))}" placeholder="Acme Corp"></label><div class="section-stack"><div class="panel__actions"><div><span>Order Items</span><p class="panel__copy">Choose one or more products with quantities.</p></div><button id="${esc(fid + "-add-item")}" type="button" class="button button--secondary">Add item</button></div><div id="${esc(fid + "-items")}" class="section-stack">${rows.map((item, index) => orderItemRowHtml(ctx.products || [], item, index)).join("")}</div></div><div class="panel__actions"><button id="${esc(fid + "-submit")}" type="submit" class="button button--primary">${esc(mode === "edit" ? "Save changes" : "Create " + "Order")}</button><p id="${esc(fid + "-message")}" class="status-message" aria-live="polite"></p></div>`;
@@ -390,6 +469,7 @@
 
     function setHead(r) {
         if (r.kind === "overview") { $("#breadcrumb").textContent = "Overview"; $("#page-title").textContent = "Operations overview"; return; }
+        if (r.kind === "module" && r.mod === "ai") { $("#breadcrumb").textContent = "AI Assistant"; $("#page-title").textContent = "Warehouse assistant"; return; }
         const m = mods[r.mod];
         if (!m) { $("#breadcrumb").textContent = "Unknown"; $("#page-title").textContent = "Unavailable page"; return; }
         const label = r.act === "list" ? "List" : r.act === "create" ? "Create" : r.act === "edit" ? "Edit" : "Detail";
@@ -400,6 +480,7 @@
     function markNav(r) {
         document.querySelectorAll("[data-nav-link]").forEach((x) => x.classList.remove("is-active"));
         if (r.kind === "overview") return document.querySelector('[href="#/overview"]').classList.add("is-active");
+        if (r.kind === "module" && r.mod === "ai") return document.querySelector('[href="#/ai"]').classList.add("is-active");
         const m = mods[r.mod];
         if (!m) return;
         document.querySelectorAll("[data-nav-link]").forEach((x) => {
@@ -422,7 +503,7 @@
             xhr.open(method, url, true);
             xhr.setRequestHeader("Accept", "application/json");
             if (body !== undefined && body !== null) xhr.setRequestHeader("Content-Type", "application/json");
-            if (token() && !url.startsWith("/auth/")) xhr.setRequestHeader("Authorization", "Bearer " + token());
+            if (token() && url !== "/auth/login") xhr.setRequestHeader("Authorization", "Bearer " + token());
             xhr.onload = () => {
                 const out = parse(xhr.responseText);
                 if (xhr.status >= 200 && xhr.status < 300) return resolve(out);

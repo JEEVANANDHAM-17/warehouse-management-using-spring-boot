@@ -18,6 +18,11 @@
         <nav class="sidebar__nav" aria-label="Primary">
             <a class="nav-link" data-nav-link href="#/overview">Overview</a>
 
+            <section class="nav-group" data-module-group="ai">
+                <p class="nav-group__title">AI Assistant</p>
+                <a class="nav-link nav-link--sub" data-nav-link href="#/ai">Ask warehouse questions</a>
+            </section>
+
             <section class="nav-group" data-module-group="products">
                 <p class="nav-group__title">Products</p>
                 <a class="nav-link nav-link--sub" data-nav-link href="#/products/list">List</a>
@@ -52,6 +57,7 @@
             <p class="eyebrow">Auth Flow</p>
             <h2>Protected XHR</h2>
             <p>The login API returns the JWT in <code>ApiResponse.data</code>. All module requests send <code>Authorization: Bearer &lt;token&gt;</code>.</p>
+            <p>The AI assistant also uses the stored JWT and calls <code>POST /ai/query</code> with a natural-language warehouse question.</p>
         </section>
     </aside>
 
